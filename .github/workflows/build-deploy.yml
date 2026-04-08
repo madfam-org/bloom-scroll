@@ -35,7 +35,7 @@ jobs:
         uses: docker/build-push-action@v5
         id: build-api
         with:
-          context: backend
+          context: .
           file: backend/Dockerfile
           push: true
           tags: |
@@ -48,7 +48,7 @@ jobs:
         uses: docker/build-push-action@v5
         id: build-web
         with:
-          context: frontend
+          context: .
           file: frontend/Dockerfile
           push: true
           tags: |
@@ -59,7 +59,6 @@ jobs:
 
       - name: Install kustomize
         uses: imranismail/setup-kustomize@v2
-
 
       - name: Update api image digest
         working-directory: infra/k8s/production
