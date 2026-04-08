@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bloom-scroll-api
+  namespace: bloom-scroll
+  labels:
+    app: bloom-scroll-api
+    app.kubernetes.io/name: bloom-scroll-api
+    app.kubernetes.io/part-of: bloom-scroll
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: bloom-scroll-api
+  template:
+    metadata:
+      labels:
+        app: bloom-scroll-api
+        app.kubernetes.io/name: bloom-scroll-api
+        app.kubernetes.io/part-of: bloom-scroll
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      imagePullSecrets:
+      - name: ghcr-credentials
+      containers:
+      - name: bloom-scroll-api
+        image: ghcr.io/madfam-org/bloom-scroll/api:latest
+        ports:
+        - containerPort: 8000
+          name: http
+        envFrom:
+        - secretRef:
+            name: bloom-scroll-secrets
+            optional: true
+        resources:
+          requests:
+            cpu: "200m"
+            memory: "512Mi"
+          limits:
+            cpu: "1000m"
+            memory: "1Gi"
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: [ALL]
+        startupProbe:
+          httpGet:
+            path: /api/health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 30
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 8000
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 8000
+          periodSeconds: 30

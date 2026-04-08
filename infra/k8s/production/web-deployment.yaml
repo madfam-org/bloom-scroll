@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bloom-scroll-web
+  namespace: bloom-scroll
+  labels:
+    app: bloom-scroll-web
+    app.kubernetes.io/name: bloom-scroll-web
+    app.kubernetes.io/part-of: bloom-scroll
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: bloom-scroll-web
+  template:
+    metadata:
+      labels:
+        app: bloom-scroll-web
+        app.kubernetes.io/name: bloom-scroll-web
+        app.kubernetes.io/part-of: bloom-scroll
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      imagePullSecrets:
+      - name: ghcr-credentials
+      containers:
+      - name: bloom-scroll-web
+        image: ghcr.io/madfam-org/bloom-scroll/web:latest
+        ports:
+        - containerPort: 3000
+          name: http
+        envFrom:
+        - secretRef:
+            name: bloom-scroll-secrets
+            optional: true
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: [ALL]
+        startupProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 30
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          periodSeconds: 30

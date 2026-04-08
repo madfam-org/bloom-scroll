@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: bloom-scroll-web
+  namespace: bloom-scroll
+spec:
+  type: ClusterIP
+  selector:
+    app: bloom-scroll-web
+  ports:
+  - port: 80
+    targetPort: 3000
+    protocol: TCP
