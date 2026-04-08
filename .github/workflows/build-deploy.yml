@@ -35,7 +35,7 @@ jobs:
         uses: docker/build-push-action@v5
         id: build-api
         with:
-          context: .
+          context: backend
           file: backend/Dockerfile
           push: true
           tags: |
@@ -48,7 +48,7 @@ jobs:
         uses: docker/build-push-action@v5
         id: build-web
         with:
-          context: .
+          context: frontend
           file: frontend/Dockerfile
           push: true
           tags: |
