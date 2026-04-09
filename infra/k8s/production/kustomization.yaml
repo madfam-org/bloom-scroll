@@ -3,6 +3,7 @@ kind: Kustomization
 namespace: bloom-scroll
 resources:
 - namespace.yaml
+- db-init-job.yaml
 - api-deployment.yaml
 - api-service.yaml
 - web-deployment.yaml
