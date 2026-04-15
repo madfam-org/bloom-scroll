@@ -18,7 +18,10 @@ WORKDIR /app
 COPY pyproject.toml poetry.lock* README.md ./
 COPY app ./app
 
-# Install dependencies (without dev dependencies)
+# Install CPU-only torch first (saves ~2GB vs CUDA version)
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+
+# Install remaining dependencies (without dev dependencies)
 RUN poetry config virtualenvs.create false \
     && poetry install --only main --no-interaction --no-ansi
 
