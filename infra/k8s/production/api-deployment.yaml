@@ -30,6 +30,7 @@ spec:
       containers:
       - name: bloom-scroll-api
         image: ghcr.io/madfam-org/bloom-scroll/api:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 8000
           name: http
@@ -45,6 +46,7 @@ spec:
             cpu: "1000m"
             memory: "1Gi"
         securityContext:
+          privileged: false
           allowPrivilegeEscalation: false
           capabilities:
             drop: [ALL]

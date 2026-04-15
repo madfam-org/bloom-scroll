@@ -30,8 +30,9 @@ spec:
       containers:
       - name: bloom-scroll-web
         image: ghcr.io/madfam-org/bloom-scroll/web:latest
+        imagePullPolicy: Always
         ports:
-        - containerPort: 3000
+        - containerPort: 80
           name: http
         envFrom:
         - secretRef:
@@ -45,23 +46,24 @@ spec:
             cpu: "500m"
             memory: "512Mi"
         securityContext:
+          privileged: false
           allowPrivilegeEscalation: false
           capabilities:
             drop: [ALL]
         startupProbe:
           httpGet:
             path: /
-            port: 3000
+            port: 80
           initialDelaySeconds: 5
           periodSeconds: 5
           failureThreshold: 30
         readinessProbe:
           httpGet:
             path: /
-            port: 3000
+            port: 80
           periodSeconds: 10
         livenessProbe:
           httpGet:
             path: /
-            port: 3000
+            port: 80
           periodSeconds: 30
