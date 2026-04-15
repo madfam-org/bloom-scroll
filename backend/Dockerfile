@@ -18,12 +18,17 @@ WORKDIR /app
 COPY pyproject.toml poetry.lock* README.md ./
 COPY app ./app
 
-# Install CPU-only torch first (saves ~2GB vs CUDA version)
-RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+# Pre-install heavy ML deps with CPU-only wheels (~500MB vs ~5GB CUDA)
+RUN pip install --no-cache-dir \
+    torch torchvision --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --no-cache-dir sentence-transformers transformers
 
-# Install remaining dependencies (without dev dependencies)
+# Install remaining deps without re-resolving torch (--no-root skips project install)
 RUN poetry config virtualenvs.create false \
-    && poetry install --only main --no-interaction --no-ansi
+    && poetry install --only main --no-interaction --no-ansi --no-root
+
+# Install the project package itself (lightweight, just registers app/)
+RUN pip install --no-deps -e .
 
 # Production stage
 FROM python:3.11-slim
