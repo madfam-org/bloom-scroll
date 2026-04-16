@@ -1,0 +1,10 @@
+apiVersion: enclii.dev/v1
+kind: Service
+metadata:
+  name: bloom-scroll
+  project: bloom-scroll
+spec:
+  domains:
+    - name: almanac.solar
+    - name: www.almanac.solar
+    - name: api.almanac.solar
