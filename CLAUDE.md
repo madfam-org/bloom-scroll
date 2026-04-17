@@ -22,7 +22,7 @@ cd bloom-scroll
 cd backend
 python -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
+poetry install
 uvicorn app.main:app --reload --port 5200
 
 # Frontend (Flutter - if available)
@@ -75,7 +75,7 @@ bloom-scroll/
 │   │   │   └── curation.py   # Serendipity algorithm
 │   │   └── api/
 │   │       └── routes.py     # API endpoints
-│   ├── requirements.txt
+│   ├── pyproject.toml        # Poetry deps (preferred)
 │   └── tests/
 ├── frontend/                  # Flutter app (if present)
 │   ├── lib/
@@ -97,7 +97,7 @@ cd backend
 # Setup
 python -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
+poetry install
 
 # Run
 uvicorn app.main:app --reload --port 5200
