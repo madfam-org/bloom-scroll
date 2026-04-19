@@ -64,18 +64,18 @@ spec:
             drop: [ALL]
         startupProbe:
           httpGet:
-            path: /api/health
+            path: /health
             port: 8000
           initialDelaySeconds: 5
           periodSeconds: 5
           failureThreshold: 30
         readinessProbe:
           httpGet:
-            path: /api/health
+            path: /health
             port: 8000
           periodSeconds: 10
         livenessProbe:
           httpGet:
-            path: /api/health
+            path: /health
             port: 8000
           periodSeconds: 30
