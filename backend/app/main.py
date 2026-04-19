@@ -2,7 +2,7 @@
 
 import logging
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+from typing import Any, AsyncGenerator
 
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -67,7 +67,7 @@ async def root() -> dict[str, str]:
 
 
 @app.get("/health")
-async def health_check(db: AsyncSession = Depends(get_db)) -> dict[str, any]:
+async def health_check(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     """
     Comprehensive health check endpoint.
 
