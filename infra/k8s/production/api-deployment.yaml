@@ -34,6 +34,18 @@ spec:
         ports:
         - containerPort: 8000
           name: http
+        env:
+        # torch's default_cache_dir() calls getpwuid() which 502s when
+        # runAsUser (1001) has no /etc/passwd entry (Dockerfile creates
+        # only uid 1000). Hardcode the cache dir + HOME to sidestep.
+        - name: HOME
+          value: /tmp
+        - name: TORCHINDUCTOR_CACHE_DIR
+          value: /tmp/torchinductor
+        - name: TRANSFORMERS_CACHE
+          value: /tmp/hf-cache
+        - name: HF_HOME
+          value: /tmp/hf-cache
         envFrom:
         - secretRef:
             name: bloom-scroll-secrets
