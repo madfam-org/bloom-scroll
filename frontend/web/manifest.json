@@ -1,0 +1,12 @@
+{
+    "name": "bloom_scroll",
+    "short_name": "bloom_scroll",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#0175C2",
+    "theme_color": "#0175C2",
+    "description": "A perspective-driven content aggregator that counters doom scrolling.",
+    "orientation": "portrait-primary",
+    "prefer_related_applications": false,
+    "icons": []
+}
