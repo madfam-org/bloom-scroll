@@ -45,7 +45,7 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
 async def client() -> AsyncGenerator[AsyncClient, None]:
     """Create test HTTP client."""
     # Import here to avoid circular imports
-    from main import app
+    from app.main import app
 
     async with AsyncClient(app=app, base_url="http://test") as ac:
         yield ac
