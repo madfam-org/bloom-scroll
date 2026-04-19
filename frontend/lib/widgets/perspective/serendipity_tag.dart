@@ -73,7 +73,9 @@ class SerendipityTag extends StatelessWidget {
         iconColor = BloomColors.bloomRed;
         break;
       case 'PERSPECTIVE_SHIFT':
-        iconData = Icons.360_outlined;
+        // Icons.360_outlined is invalid Dart (identifier can't start with
+        // a digit). The Material icon is exposed as `threesixty_outlined`.
+        iconData = Icons.threesixty_outlined;
         iconColor = BloomColors.inkPrimary;
         break;
       case 'SERENDIPITY':

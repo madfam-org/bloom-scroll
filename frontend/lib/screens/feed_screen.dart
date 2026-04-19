@@ -276,7 +276,9 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
           children: [
             Text(
               card.title,
-              style: BloomTypography.h4,
+              // BloomTypography defines h1/h2/h3 (no h4); use h3 as the
+              // smallest heading style available.
+              style: BloomTypography.h3,
             ),
             const SizedBox(height: BloomSpacing.xs),
             Chip(
