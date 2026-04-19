@@ -94,7 +94,10 @@ class ApiService {
     List<String>? userContext,
   }) async {
     try {
-      final queryParams = {
+      // Explicit Map<String, dynamic> so that adding List<String>
+      // user_context below doesn't clash with the inferred int-only type
+      // from the literal integer fields.
+      final Map<String, dynamic> queryParams = <String, dynamic>{
         'page': page,
         'read_count': readCount,
         'limit': limit,
