@@ -4,10 +4,11 @@ FROM ghcr.io/cirruslabs/flutter:3.24.0 AS builder
 
 WORKDIR /app
 
-# Copy pubspec files
-COPY pubspec.yaml pubspec.lock ./
+# Copy pubspec (lockfile is generated at build time; keeping it out of VCS
+# avoids churn across platforms and avoids a hard COPY failure when absent).
+COPY pubspec.yaml ./
 
-# Get dependencies
+# Resolve and get dependencies
 RUN flutter pub get
 
 # Copy source code

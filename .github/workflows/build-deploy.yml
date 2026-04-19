@@ -28,16 +28,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Log in to Docker Hub
+        # Docker Hub pulls (e.g. ghcr.io/cirruslabs/flutter base image referenced by
+        # digest, busybox, nginx) require auth to avoid anonymous rate limits.
+        # Login MUST precede setup-buildx so buildkit inherits the credentials.
         uses: docker/login-action@v3
         continue-on-error: true
         with:
           registry: docker.io
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Build and push api
         uses: docker/build-push-action@v5
