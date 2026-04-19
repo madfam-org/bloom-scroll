@@ -138,10 +138,19 @@ flutter test          # Run tests
 
 | Service | Port | Description |
 |---------|------|-------------|
-| API | 5200 | FastAPI backend |
-| Web | 5201 | Flutter web app |
+| API (local) | 5200 | FastAPI backend |
+| Web (local) | 5201 | Flutter web app |
 | PostgreSQL | 5432 | Database |
 | Redis | 6379 | Cache |
+
+### Production (K8s)
+
+| Service | Container Port | Runs As | Probe Path |
+|---------|----------------|---------|------------|
+| `bloom-scroll-api` | 8000 | uid 1001 | `/health` (unprefixed, PR #39) |
+| `bloom-scroll-web` | 8080 | uid 1001, nginx non-root (PR #38) | `/` |
+
+nginx needs a non-privileged port (<1024 is blocked for uid 1001) and rewrites its pid/cache/temp paths to `/tmp` so the non-root user can write — see `frontend/Dockerfile` for the full config. The API `/health` route is defined directly on the FastAPI app (not under `/api/v1/*`), so probes must target the unprefixed path.
 
 ---
 
