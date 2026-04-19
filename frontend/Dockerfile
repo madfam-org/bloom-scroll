@@ -54,7 +54,19 @@ http {\n\
         location / { try_files $uri $uri/ /index.html; }\n\
     }\n\
 }\n' > /etc/nginx/nginx.conf && \
-    chown -R 1001:1001 /usr/share/nginx/html /var/log/nginx /var/cache/nginx /etc/nginx
+    chown -R 1001:1001 /usr/share/nginx/html /var/log/nginx /var/cache/nginx /etc/nginx && \
+    # nginx:alpine's /docker-entrypoint.d scripts try to mkdir
+    # /var/cache/nginx/client_temp even when the main config overrides the
+    # temp paths. Pre-create the subdirs uid 1001 can write to so the
+    # entrypoint succeeds before the main config takes over.
+    mkdir -p /var/cache/nginx/client_temp /var/cache/nginx/proxy_temp \
+             /var/cache/nginx/fastcgi_temp /var/cache/nginx/uwsgi_temp \
+             /var/cache/nginx/scgi_temp && \
+    chown -R 1001:1001 /var/cache/nginx
+
+# Run as the non-root user (k8s SecurityContext already enforces this,
+# but set USER too so local `docker run` behaves the same).
+USER 1001
 
 EXPOSE 8080
 
