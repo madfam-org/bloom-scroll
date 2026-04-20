@@ -25,8 +25,16 @@ spec:
         matchLabels:
           kubernetes.io/metadata.name: cloudflare-tunnel
     ports:
+    # api container (FastAPI)
     - port: 8000
       protocol: TCP
+    # web container (nginx non-root — can't bind <1024 as uid 1001, so
+    # listens on 8080 per frontend/Dockerfile). NetworkPolicy `ports`
+    # matches the destination pod port, not the Service port, so
+    # port 80 alone leaves the tunnel blocked from reaching the web pod.
+    - port: 8080
+      protocol: TCP
+    # legacy: kept for any service still binding 80 at pod level.
     - port: 80
       protocol: TCP
 ---
