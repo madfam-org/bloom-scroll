@@ -20,14 +20,13 @@
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="A perspective-driven content aggregator that counters doom scrolling">
 
-  <!-- iOS meta tags -->
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="bloom_scroll">
-
-  <title>bloom_scroll</title>
-  <link rel="manifest" href="manifest.json">
+  <!-- Deliberately NOT a PWA. The product thesis is "20 items then stop"
+       — a browser-only slow-web aggregator. Setting mobile-web-app-capable
+       + a standalone-display manifest causes Chrome/Android to prompt for
+       "access to other apps and services on this device" during its
+       install flow, which is both wrong and user-hostile for this product.
+       No manifest link, no standalone meta tags. -->
+  <title>Almanac — Slow Web</title>
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>
