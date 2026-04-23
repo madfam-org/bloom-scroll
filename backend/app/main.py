@@ -1,6 +1,7 @@
 """Main FastAPI application entry point."""
 
 import logging
+import os
 from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator
 
@@ -32,11 +33,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("🌸 Bloom Scroll shutting down...")
 
 
+# Audit 2026-04-23 H9: hide /docs + /openapi.json in production.
+_DOCS_ENABLED = os.getenv("ENV", "development") != "production"
+
 app = FastAPI(
     title="Bloom Scroll API",
     description="Backend service for perspective-driven content aggregation",
     version="0.1.0",
     lifespan=lifespan,
+    docs_url="/docs" if _DOCS_ENABLED else None,
+    redoc_url="/redoc" if _DOCS_ENABLED else None,
+    openapi_url="/openapi.json" if _DOCS_ENABLED else None,
 )
 
 # Configure CORS
