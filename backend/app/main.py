@@ -1,6 +1,7 @@
 """Main FastAPI application entry point."""
 
 import logging
+import os
 from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator
 
@@ -12,6 +13,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.routes import router as api_router
 from app.core.database import get_db
 from app.core.error_handlers import register_error_handlers
+
+# Audit 2026-04-23 H5: wildcard CORS + allow_credentials=True was a spec
+# violation and a cross-tenant read risk. Drive the allowlist from env with
+# a sensible default for almanac.solar production + local dev.
+_DEFAULT_ORIGINS = (
+    "https://almanac.solar",
+    "https://app.almanac.solar",
+    "https://api.almanac.solar",
+    "http://localhost:3000",
+    "http://localhost:5201",
+)
+_env_origins = os.getenv("CORS_ALLOWED_ORIGINS", "").strip()
+_ALLOWED_ORIGINS = (
+    [o.strip() for o in _env_origins.split(",") if o.strip()]
+    if _env_origins
+    else list(_DEFAULT_ORIGINS)
+)
 
 # Configure structured logging
 logging.basicConfig(
@@ -39,13 +57,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Configure CORS
+# Configure CORS (env-driven, per audit 2026-04-23 H5 — see top of file).
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure properly in production
+    allow_origins=_ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
 )
 
 # Register global error handlers

@@ -314,3 +314,10 @@ flutter test --coverage
 ---
 
 *Bloom Scroll - The Slow Web | 20 Items. Then Stop.*
+
+## Known Issues — Audit 2026-04-23
+
+See `/Users/aldoruizluna/labspace/claudedocs/ECOSYSTEM_AUDIT_2026-04-23.md` for the full ecosystem audit.
+
+- ~~**🟠 H5: Wildcard CORS**~~ — Fixed 2026-04-23: `backend/app/main.py` reads `CORS_ALLOWED_ORIGINS` env with `almanac.solar` fallback; explicit method + header lists.
+- **🟠 H9: OpenAPI docs exposed unconditionally** — `backend/app/main.py:65`. Gate on env.
