@@ -17,7 +17,7 @@ dependencies:
   google_fonts: ^6.1.0  # Libre Baskerville & Inter fonts
 
   # Data Visualization
-  fl_chart: ^0.65.0  # Interactive charts for OWID data
+  fl_chart: ^1.2.0  # Interactive charts for OWID data
 
   # Networking
   dio: ^5.4.0  # HTTP client
