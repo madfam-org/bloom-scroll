@@ -33,7 +33,7 @@ dependencies:
   shared_preferences: ^2.2.2  # STORY-007: Read state tracking
 
   # Dependency Injection
-  get_it: ^7.6.4
+  get_it: ^9.2.1
   injectable: ^2.3.2
 
   # Utilities
