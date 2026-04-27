@@ -4,6 +4,26 @@ metadata:
   name: bloom-scroll
   project: bloom-scroll
 spec:
+  # status.madfam.io tracking — bloom-scroll IS the Almanac product (owns
+  # almanac.solar + api.almanac.solar). Pre-existing entries were hand-added
+  # to the platform configmap before the zero-touch model; declaring them
+  # here so `POST /v1/admin/status/regenerate` keeps them on the page.
+  # See Phase 2 follow-up backfill 2026-04-27.
+  status:
+    enabled: true
+    entries:
+      - name: Almanac Web
+        url: https://almanac.solar
+        href: https://almanac.solar
+        group: Almanac
+        family: Content & Creative
+        description: Slow web aggregator — 20 items, then stop
+      - name: Almanac API
+        url: https://api.almanac.solar/health
+        href: https://api.almanac.solar
+        group: Almanac
+        family: Content & Creative
+        description: Serendipity curation + embeddings API
   domains:
     - name: almanac.solar
     - name: www.almanac.solar
