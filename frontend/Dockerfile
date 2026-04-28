@@ -14,8 +14,23 @@ RUN flutter pub get
 # Copy source code
 COPY . .
 
-# Build for web
-RUN flutter build web --release
+# API base URL is read at compile time via `String.fromEnvironment(...)` in
+# `lib/services/api_config.dart`. The Dart compiler bakes the value into the
+# JS bundle at `flutter build` — there's no runtime env var path. Default to
+# production; override with `--build-arg API_BASE_URL=http://localhost:8000`
+# for local dev builds.
+#
+# Why hardcode the prod default: the enclii reusable build workflow
+# (madfam-org/enclii/.github/workflows/build-publish.yml) doesn't currently
+# expose a `build_args` input to consumer repos. Embedding the prod URL
+# here is the smallest correct fix to unbreak production. Same class of bug
+# as the `feedback_nextjs_build_args.md` memory entry (Next.js NEXT_PUBLIC_*)
+# and the bit-rondelio + karafiel build-arg fixes earlier this quarter.
+ARG API_BASE_URL=https://api.almanac.solar
+
+# Build for web. `--dart-define=K=V` threads compile-time constants into
+# `String.fromEnvironment(K)`.
+RUN flutter build web --release --dart-define=API_BASE_URL=${API_BASE_URL}
 
 # Production stage - serve with nginx
 FROM nginx:alpine AS runner
