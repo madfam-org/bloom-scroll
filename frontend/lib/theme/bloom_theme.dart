@@ -56,7 +56,7 @@ class BloomTheme {
       ),
 
       // Card Theme
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: BloomColors.surfaceBg,
         elevation: BloomSpacing.elevation,
         shape: RoundedRectangleBorder(
@@ -227,7 +227,7 @@ class BloomTheme {
       ),
 
       // Dialog Theme
-      dialogTheme: DialogTheme(
+      dialogTheme: DialogThemeData(
         backgroundColor: BloomColors.primaryBg,
         elevation: BloomSpacing.elevation,
         shape: RoundedRectangleBorder(

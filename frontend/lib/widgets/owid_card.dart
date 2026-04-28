@@ -203,10 +203,10 @@ class _OwidCardState extends State<OwidCard> {
             }).toList();
           },
           touchTooltipData: LineTouchTooltipData(
-            // fl_chart ^0.65.0 (pinned in pubspec.yaml) uses tooltipBgColor;
-            // getTooltipColor was introduced in 0.66.0.
-            tooltipBgColor: BloomChartConfig.touchColor,
-            tooltipRoundedRadius: BloomSpacing.cardRadius,
+            // fl_chart 1.x: tooltipBgColor → getTooltipColor callback,
+            // tooltipRoundedRadius (double) → tooltipBorderRadius (BorderRadius).
+            getTooltipColor: (touchedSpot) => BloomChartConfig.touchColor,
+            tooltipBorderRadius: BloomSpacing.cardBorderRadius,
             tooltipPadding: const EdgeInsets.symmetric(
               horizontal: BloomSpacing.sm,
               vertical: BloomSpacing.xs,
