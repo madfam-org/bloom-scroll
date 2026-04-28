@@ -9,12 +9,13 @@ This script tests the acceptance criteria:
 
 import asyncio
 import sys
+
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.models.bloom_card import BloomCard
 from app.ingestion.owid import OWIDConnector
+from app.models.bloom_card import BloomCard
 
 
 async def test_story_001():
@@ -95,7 +96,7 @@ async def test_story_001():
                     print(f"   ✗ Missing field: {field}")
                     return False
 
-            print(f"   ✓ Data payload is valid JSON")
+            print("   ✓ Data payload is valid JSON")
             print(f"   ✓ Years: {len(payload['years'])} data points")
             print(f"   ✓ Indicator: {payload['indicator']}")
             print(f"   ✓ Unit: {payload['unit']}")

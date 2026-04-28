@@ -1,6 +1,7 @@
 """Celery worker configuration for background tasks."""
 
 import logging
+
 from celery import Celery
 
 from app.core.config import settings

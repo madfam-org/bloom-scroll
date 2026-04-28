@@ -1,17 +1,17 @@
 """Main API router combining all endpoint modules."""
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import ingestion, interactions
 from app.core.database import get_db
-from app.models.bloom_card import BloomCard
 from app.curation.bloom_algorithm import BloomAlgorithm
+from app.models.bloom_card import BloomCard
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ DAILY_LIMIT = 20
 
 @router.get("/feed")
 async def get_feed(
-    user_context: Optional[List[str]] = Query(
+    user_context: list[str] | None = Query(
         None,
         description="IDs of recently viewed cards (for serendipity scoring)"
     ),
@@ -36,7 +36,7 @@ async def get_feed(
     read_count: int = Query(0, ge=0, description="Number of cards already read today"),
     limit: int = Query(10, ge=1, le=20, description="Cards per page (max 20)"),
     db: AsyncSession = Depends(get_db),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Generate a bloom feed session with serendipity scoring and finite pagination.
 
@@ -144,7 +144,11 @@ async def get_feed(
     for card in cards:
         try:
             # Calculate reason tag based on serendipity context
-            reason_tag = bloom.calculate_reason_tag(card, context_vector) if context_vector else "RECENT"
+            reason_tag = (
+                bloom.calculate_reason_tag(card, context_vector)
+                if context_vector
+                else "RECENT"
+            )
             cards_data.append(card.to_dict(include_meta=True, reason_tag=reason_tag))
         except Exception as e:
             # If single card conversion fails, skip it but log error
@@ -155,7 +159,7 @@ async def get_feed(
     new_read_count = read_count + len(cards_data)
     has_next_page = new_read_count < DAILY_LIMIT
 
-    response: Dict[str, Any] = {
+    response: dict[str, Any] = {
         "cards": cards_data,
         "pagination": {
             "page": page,
@@ -183,7 +187,7 @@ async def get_feed(
 
 
 @router.get("/perspective/{card_id}")
-async def get_perspective(card_id: str) -> Dict[str, str]:
+async def get_perspective(card_id: str) -> dict[str, str]:
     """
     Get perspective overlay for a specific card.
 

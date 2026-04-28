@@ -1,10 +1,11 @@
 """Poison pill tests - ensure graceful degradation with malformed data."""
 
-import pytest
 from pathlib import Path
-from app.ingestion.owid_connector import OWIDConnector
-from app.models.bloom_card import BloomCard
 
+import pytest
+from app.ingestion.owid_connector import OWIDConnector
+
+from app.models.bloom_card import BloomCard
 
 POISON_PILLS_DIR = Path(__file__).parent / "fixtures" / "poison_pills"
 
@@ -34,8 +35,6 @@ class TestOWIDIngestionGauntlet:
 
     def test_missing_required_fields(self):
         """Should reject cards with missing required fields."""
-        connector = OWIDConnector()
-
         # Attempt to create card without title
         with pytest.raises(ValueError):
             BloomCard(
@@ -47,8 +46,6 @@ class TestOWIDIngestionGauntlet:
 
     def test_extreme_values(self):
         """Should handle extreme numeric values."""
-        connector = OWIDConnector()
-
         # Very large numbers
         card = BloomCard(
             source_type="OWID",
@@ -68,17 +65,9 @@ class TestAestheticIngestionGauntlet:
 
     def test_invalid_image_url(self):
         """Should validate image URLs."""
-        from app.ingestion.cari_connector import CARIConnector
-
-        connector = CARIConnector()
-
         # Invalid URL should be rejected or sanitized
-        payload = {
-            "image_url": "not-a-url",
-            "aspect_ratio": 1.0,
-            "dominant_color": "#000000"
-        }
-
+        # payload would be:
+        # {"image_url": "not-a-url", "aspect_ratio": 1.0, "dominant_color": "#000000"}
         # Should either raise validation error or sanitize
         # (implementation-dependent)
         assert True  # Placeholder

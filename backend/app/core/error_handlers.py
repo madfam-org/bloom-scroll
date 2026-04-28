@@ -1,10 +1,11 @@
 """Global error handlers for FastAPI application."""
 
+import logging
+
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
-from sqlalchemy.exc import SQLAlchemyError
 from pydantic import ValidationError
-import logging
+from sqlalchemy.exc import SQLAlchemyError
 
 logger = logging.getLogger(__name__)
 

@@ -1,12 +1,12 @@
 """BloomCard database model."""
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import uuid4
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import ARRAY, Column, DateTime, Float, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
-from pgvector.sqlalchemy import Vector
 
 from app.core.database import Base
 
@@ -75,7 +75,7 @@ class BloomCard(Base):
     def __repr__(self) -> str:
         return f"<BloomCard(id={self.id}, source={self.source_type}, title='{self.title[:50]}...')>"
 
-    def to_dict(self, include_meta: bool = True, reason_tag: Optional[str] = None) -> Dict[str, Any]:
+    def to_dict(self, include_meta: bool = True, reason_tag: str | None = None) -> dict[str, Any]:
         """
         Convert to dictionary for API responses.
 
@@ -100,7 +100,11 @@ class BloomCard(Base):
         if include_meta:
             data["meta"] = {
                 "bias_score": self.bias_score if self.bias_score is not None else 0.0,
-                "constructiveness_score": self.constructiveness_score if self.constructiveness_score is not None else 50.0,
+                "constructiveness_score": (
+                    self.constructiveness_score
+                    if self.constructiveness_score is not None
+                    else 50.0
+                ),
                 "blindspot_tags": self.blindspot_tags or [],
                 "reason_tag": reason_tag or "RECENT",  # Default to recent if no serendipity context
             }
