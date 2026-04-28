@@ -8,7 +8,7 @@ on:
 
 env:
   PYTHON_VERSION: "3.11"
-  FLUTTER_VERSION: "3.24.0"
+  FLUTTER_VERSION: "3.41.7"
 
 jobs:
   backend-lint:
