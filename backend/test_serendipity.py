@@ -18,16 +18,16 @@ from pathlib import Path
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent))
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
 
+from app.analysis.processor import get_nlp_processor
 from app.core.database import async_session_maker
+from app.curation.bloom_algorithm import BloomAlgorithm
+from app.ingestion.aesthetics import AestheticsConnector
+from app.ingestion.owid import OWIDConnector
 from app.models.bloom_card import BloomCard
 from app.models.user_interaction import UserInteraction
-from app.ingestion.owid import OWIDConnector
-from app.ingestion.aesthetics import AestheticsConnector
-from app.curation.bloom_algorithm import BloomAlgorithm
-from app.analysis.processor import get_nlp_processor
 
 
 async def clear_test_data(session: AsyncSession):
@@ -70,14 +70,16 @@ async def ingest_diverse_content(session: AsyncSession):
     return owid_cards, aesthetic_cards
 
 
-async def simulate_echo_chamber(session: AsyncSession, cards: list[BloomCard], user_id: str = "test_user"):
+async def simulate_echo_chamber(
+    session: AsyncSession, cards: list[BloomCard], user_id: str = "test_user"
+):
     """
     Simulate user viewing 5 similar cards consecutively.
 
     This creates an "echo chamber" pattern that the algorithm should detect.
     """
     print(f"👤 Simulating echo chamber for user: {user_id}")
-    print(f"   User views 5 similar cards consecutively...\n")
+    print("   User views 5 similar cards consecutively...\n")
 
     # Use the first 5 cards of same type (e.g., all OWID data cards)
     similar_cards = cards[:5]

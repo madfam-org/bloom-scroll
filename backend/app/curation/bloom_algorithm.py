@@ -1,14 +1,12 @@
 """The Bloom Algorithm - Serendipity-based feed generation."""
 
 import logging
-from typing import List, Optional
 
-from sqlalchemy import select, and_, func
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from pgvector.sqlalchemy import Vector
 
-from app.models.bloom_card import BloomCard
 from app.analysis.processor import get_nlp_processor
+from app.models.bloom_card import BloomCard
 
 logger = logging.getLogger(__name__)
 
@@ -48,9 +46,9 @@ class BloomAlgorithm:
     async def generate_feed(
         self,
         session: AsyncSession,
-        user_context_ids: Optional[List[str]] = None,
+        user_context_ids: list[str] | None = None,
         limit: int = 20,
-    ) -> List[BloomCard]:
+    ) -> list[BloomCard]:
         """
         Generate a feed with serendipity scoring.
 
@@ -81,8 +79,8 @@ class BloomAlgorithm:
     async def _calculate_user_context(
         self,
         session: AsyncSession,
-        card_ids: List[str],
-    ) -> List[float]:
+        card_ids: list[str],
+    ) -> list[float]:
         """
         Calculate the user's context vector from their recent reads.
 
@@ -113,9 +111,9 @@ class BloomAlgorithm:
     async def _query_serendipity_zone(
         self,
         session: AsyncSession,
-        context_vector: List[float],
+        context_vector: list[float],
         limit: int,
-    ) -> List[BloomCard]:
+    ) -> list[BloomCard]:
         """
         Query for cards in the serendipity zone.
 
@@ -184,7 +182,7 @@ class BloomAlgorithm:
         self,
         session: AsyncSession,
         limit: int,
-    ) -> List[BloomCard]:
+    ) -> list[BloomCard]:
         """
         Get recent cards (fallback when no user context).
 
@@ -201,8 +199,8 @@ class BloomAlgorithm:
 
     def calculate_serendipity_score(
         self,
-        card_embedding: List[float],
-        context_vector: List[float],
+        card_embedding: list[float],
+        context_vector: list[float],
     ) -> float:
         """
         Calculate serendipity score for a card.
@@ -234,7 +232,7 @@ class BloomAlgorithm:
     def calculate_reason_tag(
         self,
         card: BloomCard,
-        context_vector: Optional[List[float]] = None,
+        context_vector: list[float] | None = None,
     ) -> str:
         """
         Calculate reason tag explaining why this card was recommended.

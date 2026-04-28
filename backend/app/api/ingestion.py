@@ -1,14 +1,13 @@
 """Ingestion API endpoints."""
 
 import logging
-from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.ingestion.owid import OWIDConnector, ingest_all_owid_datasets
 from app.ingestion.aesthetics import AestheticsConnector, ingest_all_aesthetics
+from app.ingestion.owid import OWIDConnector, ingest_all_owid_datasets
 from app.schemas.bloom_card import BloomCardResponse
 
 logger = logging.getLogger(__name__)
@@ -58,10 +57,10 @@ async def ingest_owid_dataset(
     return BloomCardResponse.model_validate(card)
 
 
-@router.post("/owid/all", response_model=List[BloomCardResponse])
+@router.post("/owid/all", response_model=list[BloomCardResponse])
 async def ingest_all_owid(
     db: AsyncSession = Depends(get_db),
-) -> List[BloomCardResponse]:
+) -> list[BloomCardResponse]:
     """
     Ingest all available OWID datasets for World entity.
 
@@ -97,17 +96,18 @@ async def list_available_datasets() -> dict:
     }
 
 
-@router.post("/aesthetics", response_model=List[BloomCardResponse])
+@router.post("/aesthetics", response_model=list[BloomCardResponse])
 async def ingest_aesthetic_channel(
     channel_key: str = "y2k",
     limit: int = 10,
     db: AsyncSession = Depends(get_db),
-) -> List[BloomCardResponse]:
+) -> list[BloomCardResponse]:
     """
     Ingest aesthetic images from an Are.na channel.
 
     Args:
-        channel_key: Aesthetic channel (y2k, frutiger_aero, vaporwave, brutalism, solarpunk, webcore)
+        channel_key: Aesthetic channel
+            (y2k, frutiger_aero, vaporwave, brutalism, solarpunk, webcore)
         limit: Number of images to fetch (default: 10)
 
     Returns:
@@ -137,11 +137,11 @@ async def ingest_aesthetic_channel(
     return [BloomCardResponse.model_validate(card) for card in cards]
 
 
-@router.post("/aesthetics/all", response_model=List[BloomCardResponse])
+@router.post("/aesthetics/all", response_model=list[BloomCardResponse])
 async def ingest_all_aesthetic_channels(
     limit_per_channel: int = 5,
     db: AsyncSession = Depends(get_db),
-) -> List[BloomCardResponse]:
+) -> list[BloomCardResponse]:
     """
     Ingest images from all available aesthetic channels.
 

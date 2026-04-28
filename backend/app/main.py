@@ -2,10 +2,11 @@
 
 import logging
 import os
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import Any, AsyncGenerator
+from typing import Any
 
-from fastapi import FastAPI, Depends
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -105,6 +106,7 @@ async def health_check(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     - 503 Service Unavailable if critical checks fail
     """
     from datetime import datetime
+
     from fastapi.responses import JSONResponse
 
     health = {

@@ -57,7 +57,15 @@ target-version = ['py311']
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+# Alembic migrations are partially auto-generated; long lines mirror schema declarations.
+"alembic/versions/*.py" = ["E501"]
+# Top-level dev scripts use module-style constants and are not part of the package.
+"test_story_001.py" = ["N806"]
 
 [tool.mypy]
 python_version = "3.11"

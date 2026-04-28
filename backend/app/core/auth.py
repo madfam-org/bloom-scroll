@@ -5,8 +5,6 @@ Provides JWT verification and user extraction for API endpoints.
 Tokens are issued by Janua (MADFAM's centralized auth service).
 """
 
-from datetime import datetime
-from typing import Optional
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -24,11 +22,11 @@ class User(BaseModel):
 
     id: str
     email: str
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
+    first_name: str | None = None
+    last_name: str | None = None
     roles: list[str] = []
     permissions: list[str] = []
-    org_id: Optional[str] = None
+    org_id: str | None = None
 
 
 class TokenPayload(BaseModel):
@@ -36,17 +34,17 @@ class TokenPayload(BaseModel):
 
     sub: str  # User ID
     email: str
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
+    first_name: str | None = None
+    last_name: str | None = None
     roles: list[str] = []
     permissions: list[str] = []
-    org_id: Optional[str] = None
+    org_id: str | None = None
     exp: int
     iat: int
     iss: str = "janua"
 
 
-def verify_token(token: str) -> Optional[TokenPayload]:
+def verify_token(token: str) -> TokenPayload | None:
     """
     Verify a Janua JWT token.
 
@@ -76,12 +74,12 @@ def verify_token(token: str) -> Optional[TokenPayload]:
             iat=payload.get("iat"),
             iss=payload.get("iss", "janua"),
         )
-    except JWTError as e:
+    except JWTError:
         return None
 
 
 async def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
 ) -> User:
     """
     FastAPI dependency to get current authenticated user.
@@ -127,8 +125,8 @@ async def get_current_user(
 
 
 async def get_current_user_optional(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
-) -> Optional[User]:
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+) -> User | None:
     """
     FastAPI dependency to get current user if authenticated.
 

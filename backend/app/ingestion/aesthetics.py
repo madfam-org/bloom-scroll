@@ -1,15 +1,15 @@
 """Are.na Aesthetics connector for fetching visual culture."""
 
 import logging
-from typing import Any, Dict, List, Optional
 from io import BytesIO
+from typing import Any
 
 import httpx
 from PIL import Image
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.bloom_card import BloomCard
 from app.analysis.processor import get_nlp_processor
+from app.models.bloom_card import BloomCard
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ class AestheticsConnector:
         self,
         channel_slug: str,
         limit: int = 10,
-    ) -> Optional[List[Dict[str, Any]]]:
+    ) -> list[dict[str, Any]] | None:
         """
         Fetch blocks (items) from an Are.na channel.
 
@@ -145,7 +145,7 @@ class AestheticsConnector:
         session: AsyncSession,
         channel_key: str = "y2k",
         limit: int = 10,
-    ) -> List[BloomCard]:
+    ) -> list[BloomCard]:
         """
         Fetch aesthetic images and insert into database.
 
@@ -197,7 +197,11 @@ class AestheticsConnector:
                 }
 
                 # Generate embedding
-                summary_text = description[:200] if description else f"Visual from {channel_key} aesthetic"
+                summary_text = (
+                    description[:200]
+                    if description
+                    else f"Visual from {channel_key} aesthetic"
+                )
                 embedding_text = f"{title}. {summary_text}"
                 nlp = get_nlp_processor()
                 embedding = nlp.generate_embedding(embedding_text)
@@ -230,7 +234,7 @@ class AestheticsConnector:
 async def ingest_all_aesthetics(
     session: AsyncSession,
     limit_per_channel: int = 5,
-) -> List[BloomCard]:
+) -> list[BloomCard]:
     """
     Ingest images from all aesthetic channels.
 

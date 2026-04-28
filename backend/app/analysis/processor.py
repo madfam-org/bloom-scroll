@@ -1,7 +1,6 @@
 """NLP processing for embeddings and bias detection."""
 
 import logging
-from typing import List, Optional
 
 import numpy as np
 from sentence_transformers import SentenceTransformer
@@ -29,7 +28,7 @@ class NLPProcessor:
             logger.info("Embedding model loaded successfully")
         return self._embedding_model
 
-    def generate_embedding(self, text: str) -> List[float]:
+    def generate_embedding(self, text: str) -> list[float]:
         """
         Generate 384-dimensional embedding for text.
 
@@ -51,7 +50,7 @@ class NLPProcessor:
             logger.error(f"Error generating embedding: {e}")
             return [0.0] * 384
 
-    def generate_embeddings_batch(self, texts: List[str]) -> List[List[float]]:
+    def generate_embeddings_batch(self, texts: list[str]) -> list[list[float]]:
         """
         Generate embeddings for multiple texts efficiently.
 
@@ -72,7 +71,7 @@ class NLPProcessor:
             logger.error(f"Error generating batch embeddings: {e}")
             return [[0.0] * 384] * len(texts)
 
-    def detect_bias(self, text: str) -> Optional[float]:
+    def detect_bias(self, text: str) -> float | None:
         """
         Detect political bias in text.
 
@@ -88,8 +87,8 @@ class NLPProcessor:
 
     def calculate_cosine_similarity(
         self,
-        embedding1: List[float],
-        embedding2: List[float],
+        embedding1: list[float],
+        embedding2: list[float],
     ) -> float:
         """
         Calculate cosine similarity between two embeddings.
@@ -121,8 +120,8 @@ class NLPProcessor:
 
     def calculate_cosine_distance(
         self,
-        embedding1: List[float],
-        embedding2: List[float],
+        embedding1: list[float],
+        embedding2: list[float],
     ) -> float:
         """
         Calculate cosine distance between two embeddings.
@@ -139,7 +138,7 @@ class NLPProcessor:
         similarity = self.calculate_cosine_similarity(embedding1, embedding2)
         return 1.0 - similarity
 
-    def calculate_context_vector(self, embeddings: List[List[float]]) -> List[float]:
+    def calculate_context_vector(self, embeddings: list[list[float]]) -> list[float]:
         """
         Calculate average embedding from a list of embeddings.
 
@@ -164,8 +163,8 @@ class NLPProcessor:
 
     def is_in_serendipity_zone(
         self,
-        candidate_embedding: List[float],
-        context_embedding: List[float],
+        candidate_embedding: list[float],
+        context_embedding: list[float],
         min_distance: float = 0.3,
         max_distance: float = 0.8,
     ) -> bool:
@@ -189,7 +188,7 @@ class NLPProcessor:
 
 
 # Global singleton instance
-_nlp_processor: Optional[NLPProcessor] = None
+_nlp_processor: NLPProcessor | None = None
 
 
 def get_nlp_processor() -> NLPProcessor:

@@ -1,16 +1,16 @@
 """Our World in Data (OWID) connector for fetching datasets."""
 
 import logging
-from typing import Any, Dict, List, Optional
 from datetime import datetime
+from typing import Any
 
 import httpx
 import pandas as pd
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.analysis.processor import get_nlp_processor
 from app.models.bloom_card import BloomCard
 from app.schemas.bloom_card import OWIDDataPayload
-from app.analysis.processor import get_nlp_processor
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +54,7 @@ class OWIDConnector:
         dataset_key: str,
         entity: str = "World",
         years_back: int = 20,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Fetch a dataset from OWID and format for BloomCard.
 
@@ -118,7 +118,8 @@ class OWIDConnector:
             )
 
             logger.info(
-                f"Successfully fetched {len(years)} data points for {entity} - {dataset_info['indicator']}"
+                f"Successfully fetched {len(years)} data points for {entity} - "
+                f"{dataset_info['indicator']}"
             )
 
             return payload.model_dump()
@@ -136,7 +137,7 @@ class OWIDConnector:
         dataset_key: str,
         entity: str = "World",
         years_back: int = 20,
-    ) -> Optional[BloomCard]:
+    ) -> BloomCard | None:
         """
         Fetch OWID data and insert into database.
 
@@ -158,7 +159,10 @@ class OWIDConnector:
 
         # Generate text for embedding
         title = f"{dataset_info['indicator']} - {entity}"
-        summary = f"Historical data on {dataset_info['indicator'].lower()} for {entity} over the past {years_back} years."
+        summary = (
+            f"Historical data on {dataset_info['indicator'].lower()} for {entity} "
+            f"over the past {years_back} years."
+        )
         embedding_text = f"{title}. {summary}"
 
         # Generate embedding
@@ -185,7 +189,7 @@ class OWIDConnector:
         return card
 
 
-async def ingest_all_owid_datasets(session: AsyncSession) -> List[BloomCard]:
+async def ingest_all_owid_datasets(session: AsyncSession) -> list[BloomCard]:
     """
     Ingest all available OWID datasets for World entity.
 
