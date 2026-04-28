@@ -1,6 +1,9 @@
 # Bloom Scroll Frontend - Flutter Web Dockerfile
 # Build stage
-FROM ghcr.io/cirruslabs/flutter:3.24.0 AS builder
+# Pinned to 3.41.7 (Dart 3.10+) so share_plus 13.x and other modern
+# packages can resolve their SDK constraints. Bumped from 3.24.0 (Dart 3.5)
+# 2026-04-28 after share_plus 13.1.0 + Dart >=3.10 mismatch broke the build.
+FROM ghcr.io/cirruslabs/flutter:3.41.7 AS builder
 
 WORKDIR /app
 
