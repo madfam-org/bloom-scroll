@@ -13,6 +13,6 @@ images:
 - digest: sha256:f26883cc444ca2f3bca7a5d68662006899b1189279256e5bd02ace5fd0e1ab53
   name: ghcr.io/madfam-org/bloom-scroll/api
   newName: ghcr.io/madfam-org/bloom-scroll/api
-- digest: sha256:8ca3635997dd26a2ef829fcedc9389f11aea68075373836dfa6e0f18c6cb3024
+- digest: sha256:d5fb78753c98bdf1fe7f2f1eb9a095a4631bcbac5fbc2f0cd7d55dad65630311
   name: ghcr.io/madfam-org/bloom-scroll/web
   newName: ghcr.io/madfam-org/bloom-scroll/web
