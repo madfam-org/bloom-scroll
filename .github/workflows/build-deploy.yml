@@ -26,7 +26,8 @@ jobs:
       services: |
         [
           {"name":"api", "context":"backend",  "dockerfile":"backend/Dockerfile",  "paths":"backend"},
-          {"name":"web", "context":"frontend", "dockerfile":"frontend/Dockerfile", "paths":"frontend"}
+          {"name":"web", "context":"frontend", "dockerfile":"frontend/Dockerfile", "paths":"frontend",
+           "build_args":"API_BASE_URL=https://api.almanac.solar"}
         ]
     secrets: inherit
     permissions:
