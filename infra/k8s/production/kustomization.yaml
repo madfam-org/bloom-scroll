@@ -10,9 +10,9 @@ resources:
 - web-service.yaml
 - network-policies.yaml
 images:
-- digest: sha256:f26883cc444ca2f3bca7a5d68662006899b1189279256e5bd02ace5fd0e1ab53
+- digest: sha256:3a415fc8e4ce5a6703bf4da4e849aba157822708149984fb0838c1585b06964d
   name: ghcr.io/madfam-org/bloom-scroll/api
   newName: ghcr.io/madfam-org/bloom-scroll/api
-- digest: sha256:d5fb78753c98bdf1fe7f2f1eb9a095a4631bcbac5fbc2f0cd7d55dad65630311
+- digest: sha256:8d3a7539a8283d5f4a1dd80055816d7c32494f329e3b6e3fafa8cc6a18d29dd1
   name: ghcr.io/madfam-org/bloom-scroll/web
   newName: ghcr.io/madfam-org/bloom-scroll/web
