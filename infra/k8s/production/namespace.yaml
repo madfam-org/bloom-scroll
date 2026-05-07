@@ -4,4 +4,5 @@ metadata:
   name: bloom-scroll
   labels:
     app.kubernetes.io/part-of: madfam-platform
+    enclii.dev/data-access: "true"
     enclii.dev/type: application
