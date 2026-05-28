@@ -5,7 +5,7 @@ from httpx import AsyncClient
 
 
 @pytest.mark.asyncio
-async def test_feed_completion_when_daily_limit_reached(client: AsyncClient):
+async def test_feed_completion_when_daily_limit_reached(client: AsyncClient) -> None:
     """The finite feed should return completion once read_count reaches 20."""
     response = await client.get("/api/v1/feed", params={"read_count": 20})
 
@@ -18,7 +18,7 @@ async def test_feed_completion_when_daily_limit_reached(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_feed_clamps_limit_to_remaining_daily_cards(client: AsyncClient):
+async def test_feed_clamps_limit_to_remaining_daily_cards(client: AsyncClient) -> None:
     """The API should not return pagination metadata beyond the daily cap."""
     response = await client.get(
         "/api/v1/feed",
@@ -32,7 +32,7 @@ async def test_feed_clamps_limit_to_remaining_daily_cards(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_feed_rejects_negative_limit(client: AsyncClient):
+async def test_feed_rejects_negative_limit(client: AsyncClient) -> None:
     """FastAPI validation should reject invalid limits."""
     response = await client.get("/api/v1/feed", params={"limit": -1})
 
@@ -40,7 +40,7 @@ async def test_feed_rejects_negative_limit(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_feed_rejects_invalid_user_context_uuid(client: AsyncClient):
+async def test_feed_rejects_invalid_user_context_uuid(client: AsyncClient) -> None:
     """Invalid UUIDs should be rejected before feed generation."""
     response = await client.get(
         "/api/v1/feed",
@@ -51,7 +51,7 @@ async def test_feed_rejects_invalid_user_context_uuid(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_perspective_endpoint_is_explicit_placeholder(client: AsyncClient):
+async def test_perspective_endpoint_is_explicit_placeholder(client: AsyncClient) -> None:
     """The current perspective endpoint is present but not implemented."""
     response = await client.get("/api/v1/perspective/test-card")
 

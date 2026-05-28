@@ -92,7 +92,7 @@ flutter test
 dart format .
 ```
 
-There is no committed `frontend/test/` directory as of the current audit, so `flutter test` may only validate framework/package setup until tests are added.
+`frontend/test/` covers API response models, API configuration defaults, and daily read-state storage. CI runs `flutter test` after analyzer checks and before the release web build.
 
 ## API Configuration
 

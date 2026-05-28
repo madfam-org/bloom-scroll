@@ -8,6 +8,7 @@ from typing import Any
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -100,7 +101,7 @@ async def root() -> dict[str, str]:
 
 
 @app.get("/health")
-async def health_check(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+async def health_check(db: AsyncSession = Depends(get_db)) -> JSONResponse:
     """
     Comprehensive health check endpoint.
 
@@ -115,13 +116,11 @@ async def health_check(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     """
     from datetime import datetime
 
-    from fastapi.responses import JSONResponse
-
-    health = {
+    health: dict[str, Any] = {
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
         "version": "0.1.0",
-        "checks": {}
+        "checks": {},
     }
 
     # Check 1: Database connectivity
@@ -141,13 +140,13 @@ async def health_check(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
         vector_count = result.scalar()
         health["checks"]["vectors"] = {
             "status": "ok",
-            "message": f"{vector_count} embeddings indexed"
+            "message": f"{vector_count} embeddings indexed",
         }
     except Exception as e:
         logger.warning(f"Vector health check failed: {e}")
         health["checks"]["vectors"] = {
             "status": "degraded",
-            "message": "Vector search may be unavailable"
+            "message": "Vector search may be unavailable",
         }
         # Don't mark as unhealthy - vectors are not critical for basic operation
 
@@ -157,7 +156,7 @@ async def health_check(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
         card_count = result.scalar()
         health["checks"]["cards"] = {
             "status": "ok",
-            "message": f"{card_count} cards in database"
+            "message": f"{card_count} cards in database",
         }
     except Exception as e:
         logger.error(f"Card count check failed: {e}")

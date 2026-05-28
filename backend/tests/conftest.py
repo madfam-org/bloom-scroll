@@ -4,13 +4,12 @@ Pytest configuration and fixtures for Bloom Scroll backend tests.
 
 import asyncio
 from collections.abc import AsyncGenerator, Generator
-from typing import Any
+from typing import Any, cast
 
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
 # Test database URL - uses test database
@@ -18,7 +17,7 @@ TEST_DATABASE_URL = "postgresql+asyncpg://bloom:bloom_dev@localhost:5434/bloom_t
 
 
 @pytest.fixture(scope="session")
-def event_loop() -> Generator:
+def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
     """Create event loop for async tests."""
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
@@ -33,7 +32,7 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
         poolclass=NullPool,
     )
 
-    async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async with async_session() as session:
         yield session
@@ -77,7 +76,7 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
         yield _FakeDBSession()
 
     app.dependency_overrides[get_db] = override_get_db
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=cast(Any, app))
 
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
@@ -86,7 +85,7 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
 
 
 @pytest.fixture
-def sample_feed_data() -> dict:
+def sample_feed_data() -> dict[str, str]:
     """Sample feed data for testing."""
     return {
         "name": "Test Feed",
@@ -97,7 +96,7 @@ def sample_feed_data() -> dict:
 
 
 @pytest.fixture
-def sample_article_data() -> dict:
+def sample_article_data() -> dict[str, str]:
     """Sample article data for testing."""
     return {
         "title": "Test Article",

@@ -235,6 +235,7 @@ poetry run pytest
 # Code quality
 poetry run black .
 poetry run ruff check .
+poetry run mypy . --ignore-missing-imports
 
 # Database migrations
 poetry run alembic revision --autogenerate -m "Description"
@@ -257,9 +258,11 @@ flutter pub run build_runner build --delete-conflicting-outputs
 # Run tests
 flutter test
 
+# Static analysis
+flutter analyze --no-fatal-infos
+
 # Build for release
-flutter build apk --release  # Android
-flutter build ios --release  # iOS
+flutter build web --release --dart-define=API_BASE_URL=http://localhost:8000
 ```
 
 ---

@@ -1,6 +1,7 @@
 """The Bloom Algorithm - Serendipity-based feed generation."""
 
 import logging
+from typing import cast
 
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -150,14 +151,15 @@ class BloomAlgorithm:
 
         # Filter by serendipity zone in Python
         # (pgvector WHERE clause would be complex for range queries)
-        serendipity_cards = []
+        serendipity_cards: list[tuple[float, BloomCard]] = []
 
         for card in all_cards:
-            if not card.embedding:
+            card_embedding = cast(list[float] | None, card.embedding)
+            if not card_embedding:
                 continue
 
             # Calculate distance
-            distance = self.nlp.calculate_cosine_distance(card.embedding, context_vector)
+            distance = self.nlp.calculate_cosine_distance(card_embedding, context_vector)
 
             # Check if in serendipity zone
             if self.min_distance <= distance <= self.max_distance:
@@ -195,7 +197,7 @@ class BloomAlgorithm:
         """
         stmt = select(BloomCard).order_by(BloomCard.created_at.desc()).limit(limit)
         result = await session.execute(stmt)
-        return result.scalars().all()
+        return list(result.scalars().all())
 
     def calculate_serendipity_score(
         self,
@@ -245,11 +247,12 @@ class BloomAlgorithm:
             Reason tag string (e.g., "BLINDSPOT_BREAKER", "DEEP_DIVE")
         """
         # No context = recent/popular
-        if not context_vector or not card.embedding:
+        card_embedding = cast(list[float] | None, card.embedding)
+        if not context_vector or not card_embedding:
             return "RECENT"
 
         # Calculate distance
-        distance = self.nlp.calculate_cosine_distance(card.embedding, context_vector)
+        distance = self.nlp.calculate_cosine_distance(card_embedding, context_vector)
 
         # Check if there are blindspot tags
         if card.blindspot_tags and len(card.blindspot_tags) > 0:

@@ -134,7 +134,7 @@ async def get_feed(
             .order_by(BloomCard.created_at.desc())
             .limit(effective_limit)
         )
-        cards = result.scalars().all()
+        cards = list(result.scalars().all())
         context_vector = None
 
         logger.warning(f"Fallback: Returned {len(cards)} recent cards")

@@ -126,8 +126,8 @@ class AestheticsConnector:
         try:
             img = Image.open(BytesIO(image_data))
             # Resize to 1x1 to get average color
-            img = img.resize((1, 1), Image.LANCZOS)
-            pixel = img.getpixel((0, 0))
+            resized = img.resize((1, 1), Image.Resampling.LANCZOS)
+            pixel = resized.getpixel((0, 0))
 
             # Handle RGBA vs RGB
             if isinstance(pixel, tuple):

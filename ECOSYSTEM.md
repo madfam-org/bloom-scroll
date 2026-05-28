@@ -148,9 +148,9 @@ enclii whoami                 # verify active session
 enclii logout                 # clear local creds
 ```
 
-Env vars: `ENCLII_API_URL` (default `https://api.enclii.dev`),
-`ENCLII_TOKEN` (alternative to interactive login),
-`ENCLII_PROJECT`, `ENCLII_ENV`.
+Global flags: `--api-endpoint` (default `https://api.enclii.dev`) and
+`--api-token` (or `ENCLII_API_TOKEN`). In this repo, set
+`ENCLII_PROJECT=bloom-scroll` before production status/log commands.
 
 ### Day-to-day for bloom-scroll-web
 
@@ -159,23 +159,22 @@ this repo as registered in Switchyard. For any other service in the
 ecosystem, swap the name.
 
 ```bash
-# Status + where the pods are running
-enclii ps --wide
-enclii ps --env production
+# Status
+ENCLII_PROJECT=bloom-scroll enclii ps --env production
 
 # Logs (tail, filter, history)
-enclii logs bloom-scroll-web -f                          # live tail
-enclii logs bloom-scroll-web --since 1h --level error    # last hour, errors only
-enclii logs bloom-scroll-web --env staging -f
+ENCLII_PROJECT=bloom-scroll enclii logs bloom-scroll-web --env production --since 1h
+ENCLII_PROJECT=bloom-scroll enclii logs bloom-scroll-api --env production --since 1h
+ENCLII_PROJECT=bloom-scroll enclii logs bloom-scroll-web --env production -f
 
 # Deploy (preview, staging, production)
 enclii deploy --env preview                       # from current branch
 enclii deploy --env staging
-enclii deploy --env production --strategy canary --canary-percent 10
+enclii deploy --env prod --canary=10% --change-ticket <url>
 
 # Rollback
-enclii rollback bloom-scroll-web                         # previous release
-enclii rollback bloom-scroll-web --to-revision 5
+enclii rollback bloom-scroll-web --env prod              # previous release
+enclii rollback bloom-scroll-web v42 --env prod
 
 # Releases + history
 enclii releases bloom-scroll-web                          # list builds

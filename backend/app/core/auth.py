@@ -6,6 +6,8 @@ Tokens are issued by Janua (MADFAM's centralized auth service).
 """
 
 
+from collections.abc import Awaitable, Callable
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
@@ -151,7 +153,7 @@ async def get_current_user_optional(
     )
 
 
-def require_role(required_role: str):
+def require_role(required_role: str) -> Callable[..., Awaitable[User]]:
     """
     Dependency factory for role-based access control.
 
@@ -172,7 +174,7 @@ def require_role(required_role: str):
     return role_checker
 
 
-def require_permission(required_permission: str):
+def require_permission(required_permission: str) -> Callable[..., Awaitable[User]]:
     """
     Dependency factory for permission-based access control.
 

@@ -56,14 +56,14 @@ class BloomCard(Base):
         nullable=True,
         comment="0.0 to 100.0 (Higher = more constructive)",
     )
-    blindspot_tags = Column(
+    blindspot_tags: Any = Column(
         ARRAY(Text),
         nullable=True,
         comment="e.g., ['conservative-blindspot', 'global-south-blindspot']",
     )
 
     # Bloom Logic (for serendipity scoring)
-    embedding = Column(
+    embedding: Any = Column(
         Vector(384),  # Sentence-BERT all-MiniLM-L6-v2 produces 384-dim vectors
         nullable=True,
         comment="SBERT embedding for semantic similarity",
