@@ -53,4 +53,4 @@ Information-conscious individuals suffering from news fatigue who want:
 ---
 
 **Status**: Production alpha with stabilization gaps
-**Next Step**: Release the Enclii `ps` runtime-health parity patch from `madfam-org/enclii@03e2847`, keep production smoke checks green after digest-pin rollouts, and continue image-build/runtime hardening.
+**Next Step**: Release the Enclii `ps` runtime-health parity patch through the distributed CLI, keep production smoke checks green after digest-pin rollouts, and continue image-build/runtime hardening.

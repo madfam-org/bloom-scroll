@@ -118,5 +118,5 @@ When viewing a news item, users can swipe left to reveal the **Perspective Dashb
 
 - Keep production `/docs` and `/openapi.json` hidden through the API environment gate and `scripts/prod-smoke.sh`.
 - Keep STORY-005 backend tests and the new frontend model/config/storage tests passing in CI.
-- Release Enclii `ps` runtime-health parity from `madfam-org/enclii@03e2847` so CLI status uses the same live health feed as `enclii observe health`; current CLI observation still requires `ENCLII_PROJECT=bloom-scroll`.
+- Release Enclii `ps` runtime-health parity through the distributed CLI so CLI status uses the same live health feed as `enclii observe health`; source-built Enclii at `madfam-org/enclii@f919192` has been verified against Bloom production, and current CLI observation still requires `ENCLII_PROJECT=bloom-scroll`.
 - Keep the precise production bundle check for `http://localhost:8000/api/v1` instead of broad `localhost:` assertions.

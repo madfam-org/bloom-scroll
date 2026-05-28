@@ -514,7 +514,7 @@ The root `docker-compose.yml` is a compatibility stack on host API port `5200`; 
 
 Observed production gaps on 2026-05-28:
 - Enclii CLI observation requires explicit project context, for example `ENCLII_PROJECT=bloom-scroll enclii ps --env production`.
-- The Enclii CLI `ps` health-parity fix is implemented upstream in `madfam-org/enclii@03e2847` but still needs normal CLI release propagation.
+- The Enclii CLI `ps` health-parity fix is implemented upstream in `madfam-org/enclii@03e2847`, verified from source at `madfam-org/enclii@f919192`, and still needs normal CLI release propagation.
 - Poetry lockfile adoption remains deferred because PyTorch CPU-wheel source handling needs to stay platform-safe for Linux images and macOS local development.
 
 ---

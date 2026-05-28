@@ -80,7 +80,7 @@ Key observed facts:
 - Public API health: `https://api.almanac.solar/health` returns healthy with database OK, 8 indexed embeddings, and 8 cards.
 - The production Flutter bundle is baked to `https://api.almanac.solar/api/v1`.
 - `/docs` and `/openapi.json` are hidden in production and covered by `scripts/prod-smoke.sh`.
-- Enclii reports the `bloom-scroll-services` Argo app healthy/synced at `argocd-0562410` with zero drift.
+- Enclii reports the `bloom-scroll-services` Argo app healthy/synced at `argocd-6aa4ae5` with zero drift.
 - Root `docker-compose.yml` is a lightweight compatibility stack on API port `5200`; `infrastructure/` remains the preferred local development path.
 
 ---
@@ -302,7 +302,7 @@ flutter build web --release --dart-define=API_BASE_URL=http://localhost:8000
 - ✅ **Production docs exposure**: `/docs` and `/openapi.json` are hidden on `api.almanac.solar` by the production environment gate and covered by `scripts/prod-smoke.sh`.
 - ✅ **Auth hardening**: Janua RS256/JWKS verification is implemented with issuer and optional audience checks.
 - ✅ **OpenAlex ingestion**: Science cards now have a repo-owned connector and API endpoints.
-- 🚧 **Control-plane observability release**: Enclii `ps` has a health-parity patch upstream in `madfam-org/enclii@03e2847`; propagate it through the distributed CLI.
+- 🚧 **Control-plane observability release**: source-built Enclii `ps` from `madfam-org/enclii@f919192` reports runtime health correctly; propagate the patch through the distributed CLI.
 
 See [ROADMAP.md](docs/ROADMAP.md) for detailed tracking.
 

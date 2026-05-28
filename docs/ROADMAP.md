@@ -200,7 +200,7 @@ This roadmap tracks the 7 core implementation stories for Bloom Scroll, generate
 - `backend/tests/test_ingestion_gauntlet.py`
 - `frontend/test/widget_stress_test.dart`
 
-**Status**: Backend tests repaired on 2026-05-28. `poetry run pytest` passes 20 tests across app config, health, feed, and poison-pill coverage. Frontend tests are still pending.
+**Status**: Backend tests repaired on 2026-05-28. `poetry run pytest` passes 26 tests across app config, health, feed, auth, ingestion, and poison-pill coverage. Frontend model/config/storage tests run in CI.
 
 ---
 
@@ -358,7 +358,7 @@ This roadmap tracks the 7 core implementation stories for Bloom Scroll, generate
 - [ ] Performance optimization
 - [x] Production deployment exists (`almanac.solar`, `api.almanac.solar`)
 - [x] Production docs exposure hardened
-- [x] Enclii `ps` runtime-health parity implemented upstream in `madfam-org/enclii@03e2847`; release propagation remains.
+- [x] Enclii `ps` runtime-health parity implemented upstream in `madfam-org/enclii@03e2847`; source-built CLI verified against production at `madfam-org/enclii@f919192`; release propagation remains.
 
 ---
 
@@ -410,12 +410,12 @@ This roadmap tracks the 7 core implementation stories for Bloom Scroll, generate
 
 ### Development Velocity
 - **Stories completed**: 6/7 feature stories
-- **Stabilization story**: Backend repaired; frontend coverage pending
+- **Stabilization story**: Backend repaired; focused frontend coverage added
 - **Production status**: Public alpha is live
 
 ### Code Quality
 - **Test coverage**: Not currently verified in this audit
-- **Backend test signal**: `poetry run pytest` passes 20 tests
+- **Backend test signal**: `poetry run pytest` passes 26 tests
 - **Documentation**: Current-state reference added in `docs/CURRENT_STATE.md`
 
 ### Technical Debt
