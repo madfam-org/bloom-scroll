@@ -3,7 +3,7 @@
 **Last audited:** 2026-05-28  
 **Scope:** repository files, local manifests/configuration, and public `almanac.solar` production HTTP surface.
 
-This file is the evidence-backed current-state reference for the repo. Historical story docs remain useful for implementation context, but use this file plus the top-level READMEs for current commands, deployed behavior, and known drift.
+This file is the evidence-backed current-state reference for the repo. Historical story docs remain useful for implementation context, but use this file plus the top-level READMEs for current commands, deployed behavior, and known drift. The detailed 2026-05-28 stabilization evidence trail is in [STABILITY_SESSION_2026-05-28.md](STABILITY_SESSION_2026-05-28.md).
 
 ## Evidence Collected
 
@@ -20,9 +20,9 @@ This file is the evidence-backed current-state reference for the repo. Historica
   - `https://api.almanac.solar/api/v1/ingest/datasets` returned 3 OWID datasets.
   - `https://almanac.solar/main.dart.js` contains `https://api.almanac.solar/api/v1`, proving the API base URL is baked correctly. It also contains `localhost:8000` in connection-help text, so any status check that asserts no `localhost:` substring will false-positive.
 - Enclii-first production observation on 2026-05-28:
-  - Released Enclii CLI `v1.0.0-alpha.1` (`madfam-org/enclii@b763d92`) `ENCLII_PROJECT=bloom-scroll enclii --api-endpoint https://api.enclii.dev ps --env production` reported `bloom-scroll-web` and `bloom-scroll-api` running, `healthy`, and `2/2` on `argocd-6aa4ae5`.
-  - `ENCLII_PROJECT=bloom-scroll enclii ops apps status bloom-scroll-services --json` reported Argo health `Healthy`, sync `Synced`, revision `6aa4ae551fe9287d2d49210791fc69068266b67c`, and digest-pinned images `api@sha256:3926f1c461c77777f1d2ec95e851ad1d62f2b47b1f569a75cfc2e555b19d3794` plus `web@sha256:05c726939e02a7a9a35ffb1d398f104a5848abd353a7e968ba4c23dc2fd4ca96`.
-  - `ENCLII_PROJECT=bloom-scroll enclii ops apps diff bloom-scroll-services --json` reported drift count `0`.
+  - Released Enclii CLI `v1.0.0-alpha.1` (`madfam-org/enclii@b763d92`) `ENCLII_PROJECT=bloom-scroll enclii --api-endpoint https://api.enclii.dev ps --env production` reported `bloom-scroll-web` and `bloom-scroll-api` running, `healthy`, `2/2`, and on `argocd-a84a3de`.
+  - `ENCLII_PROJECT=bloom-scroll enclii ops apps status bloom-scroll-services --json` reported Argo health `Healthy`, sync `Synced`, operation phase `Succeeded`, revision `a84a3de0b614f1fc4fb2cc0a15fd846d490c02eb`, and digest-pinned images `api@sha256:70368afa2bd624b4ed61b12b23a7c0004f1f6befca74eb2ee6278598c9fcf84e` plus `web@sha256:05c726939e02a7a9a35ffb1d398f104a5848abd353a7e968ba4c23dc2fd4ca96`.
+  - Earlier in the same audit, `ENCLII_PROJECT=bloom-scroll enclii ops apps diff bloom-scroll-services --json` reported drift count `0` before the final dependency-lock rollout; the final app status is `Synced` at `a84a3de`.
   - `ENCLII_PROJECT=bloom-scroll enclii observe health --service ... --json` reported both API and web services `healthy`.
   - `scripts/prod-smoke.sh` passed against `https://almanac.solar` and `https://api.almanac.solar`.
 
@@ -108,6 +108,8 @@ flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000
 - `enclii.yaml` declares domains `almanac.solar`, `www.almanac.solar`, and `api.almanac.solar`.
 - `infra/argocd/config.json` points ArgoCD at `infra/k8s/production` on `main`.
 - Kustomize pins image digests for `ghcr.io/madfam-org/bloom-scroll/api` and `ghcr.io/madfam-org/bloom-scroll/web`.
+  - API digest: `sha256:70368afa2bd624b4ed61b12b23a7c0004f1f6befca74eb2ee6278598c9fcf84e`.
+  - Web digest: `sha256:05c726939e02a7a9a35ffb1d398f104a5848abd353a7e968ba4c23dc2fd4ca96`.
 - API deployment:
   - Kubernetes deployment `bloom-scroll-api`.
   - 2 replicas.
@@ -134,11 +136,18 @@ flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000
 - `enclii.yaml` status assertion was narrowed to check for `http://localhost:8000/api/v1` instead of any `localhost:` substring, because the compiled bundle legitimately includes localhost connection-help copy.
 - `frontend/lib/services/api_config.dart` comments now describe the exact production-bundle check instead of a broad localhost grep.
 - Root `docker-compose.yml` no longer references the missing `backend/Dockerfile.worker` and now maps the API container's port `8000` to host port `5200`.
-- Backend tests now target current modules/endpoints; `poetry run pytest` passes 26 tests and `poetry run mypy . --ignore-missing-imports` is clean.
-- `scripts/prod-smoke.sh` now checks web health, API health, feed completion, bundle API base, and production docs hiding; it passed against production after the `argocd-6aa4ae5` rollout.
+- Backend tests now target current modules/endpoints; `poetry run pytest -q` passes 28 tests and `poetry run mypy . --ignore-missing-imports` is clean.
+- `scripts/prod-smoke.sh` now checks web health, API health, feed completion, bundle API base, and production docs hiding; it passed against production after the `argocd-a84a3de` rollout.
 - CI now validates the root Compose file and runs `flutter test`; the deploy workflow now runs production smoke checks after the shared Enclii build/publish workflow.
 - The shared Enclii build/publish workflow was patched in `madfam-org/enclii@0a72ed7`, and the in-repo Enclii CI digest verifier in `madfam-org/enclii@f919192`, to authenticate to GHCR before digest-pin cosign verification of private packages. `madfam-org/enclii@b763d92` added tag-triggered CLI release artifacts, and `v1.0.0-alpha.1` was verified against Bloom production.
 - Backend image dependency drift was narrowed by isolating heavy ML wheels from Poetry resolution; `backend/Dockerfile` installs `requirements-ml-linux-cpu.txt` before `poetry install`, keeps dependency installation ahead of `app/`, removes the unused `torchvision` preinstall, and uses BuildKit cache mounts for pip/Poetry.
 - `backend/poetry.lock` is now committed for deterministic standard backend installs. `requirements-ml-linux-cpu.txt` pins Linux production ML wheels to CPU-only PyTorch (`torch==2.2.2+cpu`) plus `sentence-transformers==5.5.1` and `transformers==4.57.6`; `backend/tests/test_dependency_lock.py` guards that Poetry does not reintroduce torch, triton, transformers, sentence-transformers, or `nvidia-*` packages.
 - Janua auth now verifies RS256 tokens through JWKS and includes tests for valid keys, unknown `kid` rejection, and explicit HS256 fallback.
 - OpenAlex ingestion now has a repo-owned connector, endpoints, and tests for abstract reconstruction and malformed-work rejection.
+
+## Recommended Next Work
+
+1. Add frontend E2E and stress tests for finite-feed completion, pagination, production API-base behavior, missing metadata, image/aspect-ratio failures, and error-boundary paths.
+2. Add production observability: error telemetry, uptime checks, latency/error dashboards, feed failure alerts, ingestion alerts, and browser error reporting.
+3. Add load and soak tests for feed, health, and ingestion paths with larger card/vector counts.
+4. Add runtime resilience work: client/API retries, app-level rate limiting, hot-feed caching, and explicit graceful-degradation tests.

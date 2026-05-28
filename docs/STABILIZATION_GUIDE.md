@@ -10,6 +10,7 @@ Current stabilization reality:
 - Error handlers and Flutter `ErrorBoundary` are wired.
 - Poison-pill tests were repaired to current module names and pass locally.
 - Backend dependency resolution is locked; Linux production images install pinned CPU-only ML wheels before Poetry, and a pytest guard prevents Poetry from reintroducing torch/CUDA packages.
+- Final 2026-05-28 production verification found the Argo app `Healthy` and `Synced` at `a84a3de`, with API and web both healthy at `2/2` replicas.
 - Root `docker-compose.yml` is a compatibility stack; use `infrastructure/` Compose files for primary local development.
 
 ---
@@ -699,21 +700,21 @@ services:
 3. ✅ **Repair poison pill tests**
 4. ✅ **Hide production API docs** with `ENV=production` and smoke coverage
 5. ✅ **Commit backend lockfile** with Linux CPU-only ML wheel coverage
-6. **Add validation to all API endpoints** (Pydantic models)
+6. 🔜 **Add frontend E2E/stress coverage** for finite-feed completion, pagination, API-base behavior, missing metadata, image failures, and error-boundary paths
 
 ### Priority 2 (High - This Week)
-7. **Implement retry logic** in API service (exponential backoff)
-8. **Add database connection pooling** (already in schema, verify config)
+7. **Add production observability** with error telemetry, uptime checks, dashboards, feed/ingestion alerts, and browser error reporting
+8. **Implement retry logic** in API service (exponential backoff)
 9. ✅ **Add health check endpoint** (`/health`)
 10. **Profile Flutter performance** (DevTools)
-11. **Add null checks to all `fromJson` methods**
+11. **Add null checks and malformed payload fixtures for all `fromJson` methods**
 
 ### Priority 3 (Medium - This Month)
 12. **Add Redis caching** for frequent queries
 13. **Implement rate limiting** (slowapi)
 14. **Add integration tests** (end-to-end feed flow)
-15. **Set up Sentry** for production error tracking
-16. **Load test with Locust** (simulate 100+ concurrent users)
+15. **Load test with Locust or k6** for feed, health, and ingestion paths
+16. **Complete Celery/background ingestion implementation or remove unused scaffold paths**
 
 ---
 
@@ -733,18 +734,8 @@ services:
 
 ## Summary
 
-**To stabilize your app immediately:**
-
-1. Run the poison pill tests I created
-2. Integrate the error handlers into your FastAPI app
-3. Wrap your Flutter app in the ErrorBoundary widget
-4. Add retry logic to network calls
-5. Profile performance with DevTools
-
-**Then progressively add:**
-- Health checks
-- Monitoring (Sentry)
-- Load testing
-- Caching layer
-
-The app is live in production alpha, but stabilization is not complete. Next priorities are frontend end-to-end coverage, monitoring, and load testing.
+The app is live in production alpha, and the highest-risk deployment/dependency
+issues from the 2026-05-28 session are resolved. Stabilization is not complete:
+the next priorities are frontend end-to-end coverage, production observability,
+load/soak testing, retry/rate-limit/caching work, and replacing scaffolded
+background ingestion paths that still return `not_implemented`.

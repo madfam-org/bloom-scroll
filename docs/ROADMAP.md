@@ -2,7 +2,7 @@
 
 **The Work** - Story tracking and implementation status
 
-**Last audited**: 2026-05-28. For evidence from code, manifests, tests, and public production probes, see [CURRENT_STATE.md](CURRENT_STATE.md).
+**Last audited**: 2026-05-28. For evidence from code, manifests, tests, and public production probes, see [CURRENT_STATE.md](CURRENT_STATE.md). For the session-level wrap-up, see [STABILITY_SESSION_2026-05-28.md](STABILITY_SESSION_2026-05-28.md).
 
 ---
 
@@ -200,7 +200,7 @@ This roadmap tracks the 7 core implementation stories for Bloom Scroll, generate
 - `backend/tests/test_ingestion_gauntlet.py`
 - `frontend/test/widget_stress_test.dart`
 
-**Status**: Backend tests repaired on 2026-05-28. `poetry run pytest` passes 26 tests across app config, health, feed, auth, ingestion, and poison-pill coverage. Frontend model/config/storage tests run in CI.
+**Status**: Backend tests repaired on 2026-05-28. `poetry run pytest -q` passes 28 tests across app config, health, feed, auth, ingestion, dependency-lock, and poison-pill coverage. Frontend model/config/storage tests run in CI.
 
 ---
 
@@ -372,6 +372,7 @@ This roadmap tracks the 7 core implementation stories for Bloom Scroll, generate
 4. ✅ Hide production `/docs` and `/openapi.json`
 5. ✅ Commit backend dependency lockfile without regressing CPU-only Linux images
 6. 🔜 Add frontend stress tests and end-to-end testing
+7. 🔜 Add production observability and load/soak testing
 
 ### Short Term (Weeks 2-4)
 - [ ] Complete STORY-005 acceptance criteria
@@ -417,7 +418,7 @@ This roadmap tracks the 7 core implementation stories for Bloom Scroll, generate
 
 ### Code Quality
 - **Test coverage**: Not currently verified in this audit
-- **Backend test signal**: `poetry run pytest` passes 26 tests
+- **Backend test signal**: `poetry run pytest -q` passes 28 tests
 - **Documentation**: Current-state reference added in `docs/CURRENT_STATE.md`
 
 ### Technical Debt

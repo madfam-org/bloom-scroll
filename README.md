@@ -81,7 +81,7 @@ Key observed facts:
 - The production Flutter bundle is baked to `https://api.almanac.solar/api/v1`.
 - `/docs` and `/openapi.json` are hidden in production and covered by `scripts/prod-smoke.sh`.
 - Backend installs are deterministic through `backend/poetry.lock`; production ML wheels are pinned separately in `backend/requirements-ml-linux-cpu.txt` so Linux images use CPU-only PyTorch.
-- Enclii reports the `bloom-scroll-services` Argo app healthy/synced at `argocd-6aa4ae5` with zero drift.
+- Enclii reports the `bloom-scroll-services` Argo app healthy/synced at `argocd-a84a3de`; API and web are both healthy at `2/2` replicas.
 - Root `docker-compose.yml` is a lightweight compatibility stack on API port `5200`; `infrastructure/` remains the preferred local development path.
 
 ---
@@ -274,6 +274,8 @@ flutter build web --release --dart-define=API_BASE_URL=http://localhost:8000
 - **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Technical deep dive (Root System, Perspective Engine, Bloom Logic)
 - **[DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md)** - "Paper & Ink" design tokens and guidelines
 - **[ROADMAP.md](docs/ROADMAP.md)** - Story tracking (STORY-001 to STORY-007)
+- **[CURRENT_STATE.md](docs/CURRENT_STATE.md)** - Evidence-backed implementation and production state
+- **[STABILITY_SESSION_2026-05-28.md](docs/STABILITY_SESSION_2026-05-28.md)** - 2026-05-28 stabilization session wrap-up
 - **[Product Brief](docs/brief.md)** - Core concept and differentiators
 - **[PRD](docs/prd.md)** - Detailed product requirements
 
@@ -305,6 +307,7 @@ flutter build web --release --dart-define=API_BASE_URL=http://localhost:8000
 - ✅ **OpenAlex ingestion**: Science cards now have a repo-owned connector and API endpoints.
 - ✅ **Control-plane observability release**: Enclii CLI `v1.0.0-alpha.1` reports runtime health correctly from the distributed GitHub release artifact.
 - ✅ **Backend dependency determinism**: `backend/poetry.lock` is committed, CPU-only ML wheels are pinned separately for Docker, and lockfile guard tests prevent CUDA drift.
+- 🔜 **Next stability priority**: frontend E2E/stress coverage, production observability, and load/soak testing.
 
 See [ROADMAP.md](docs/ROADMAP.md) for detailed tracking.
 

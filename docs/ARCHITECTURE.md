@@ -515,6 +515,7 @@ The root `docker-compose.yml` is a compatibility stack on host API port `5200`; 
 Observed production gaps on 2026-05-28:
 - Enclii CLI observation requires explicit project context, for example `ENCLII_PROJECT=bloom-scroll enclii ps --env production`.
 - The Enclii CLI `ps` health-parity fix is implemented upstream in `madfam-org/enclii@03e2847` and released as Enclii CLI `v1.0.0-alpha.1`.
+- Final session verification reported `bloom-scroll-services` `Healthy` and `Synced` at `a84a3de0b614f1fc4fb2cc0a15fd846d490c02eb`; `bloom-scroll-api` and `bloom-scroll-web` were both healthy at `2/2` replicas.
 
 Dependency determinism:
 - `backend/poetry.lock` is committed for the standard backend dependency graph.
@@ -543,12 +544,12 @@ Dependency determinism:
 
 ### Backend
 - **Unit/API tests**: pytest files exist under `backend/tests`
-- **Backend test signal**: `poetry run pytest` passes health, feed, and poison-pill tests
+- **Backend test signal**: `poetry run pytest -q` passes 28 tests covering health, feed, auth, OpenAlex ingestion, dependency-lock safety, and poison-pill paths
 - **Load tests**: not present in the repo
 
 ### Frontend
-- **Tests**: no committed `frontend/test/` directory as of the audit
-- **Planned**: widget tests, integration tests, golden tests, and Flutter DevTools performance profiling
+- **Tests**: committed `frontend/test/` coverage exists for model parsing, API configuration defaults, and daily read-state storage
+- **Planned**: widget stress tests, browser end-to-end tests, integration tests, golden tests, and Flutter DevTools performance profiling
 
 ---
 
