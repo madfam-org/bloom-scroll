@@ -108,12 +108,14 @@ class BloomCard:
   "abstract": "This paper examines...",
   "authors": ["Smith, J.", "Doe, A."],
   "pdf_url": "https://...",
-  "citations": 42,
-  "topics": ["climate", "modeling"]
+  "cited_by_count": 42,
+  "concepts": ["climate", "modeling"]
 }
 ```
 
-OpenAlex cards exist in production data as of 2026-05-28, but this repo does not yet contain an OpenAlex ingestion module. Treat OpenAlex ingestion as an external seed path or pending connector until code is added here.
+`backend/app/ingestion/openalex.py` fetches OpenAlex works, reconstructs
+`abstract_inverted_index`, preserves authors/source/OpenAlex IDs/PDF URLs, and
+exposes ingestion through `/api/v1/ingest/openalex`.
 
 ### Data Flow
 
@@ -476,7 +478,7 @@ class BloomCard {
 - **No user tracking sold to third parties** is a product principle.
 - Frontend read count and read card IDs are stored locally with `shared_preferences`.
 - Server-side interaction tracking exists at `/api/v1/interactions/*`, but user data export/delete APIs are not implemented in this repo.
-- Production auth/JWKS integration remains a hardening gap; local auth helpers currently verify HS256 secrets.
+- Janua auth verifies production RS256 tokens through JWKS, issuer, and optional audience checks. HS algorithms are retained only as an explicit local development fallback.
 
 ### Rate Limiting
 - Application-level API rate limiting is not implemented.
@@ -512,9 +514,8 @@ The root `docker-compose.yml` is a compatibility stack on host API port `5200`; 
 
 Observed production gaps on 2026-05-28:
 - Enclii CLI observation requires explicit project context, for example `ENCLII_PROJECT=bloom-scroll enclii ps --env production`.
-- Enclii service health currently reports `unknown` even while logs and public smoke checks show healthy probe responses.
-- Production contains at least one `OPENALEX` card without a matching local ingestion module.
-- Janua RS256/JWKS verification is not implemented in this repo; current auth helper verifies HS256 with `JANUA_JWT_SECRET`.
+- The Enclii CLI `ps` health-parity fix is implemented upstream in `madfam-org/enclii@03e2847` but still needs normal CLI release propagation.
+- Poetry lockfile adoption remains deferred because PyTorch CPU-wheel source handling needs to stay platform-safe for Linux images and macOS local development.
 
 ---
 

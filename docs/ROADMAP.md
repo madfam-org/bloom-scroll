@@ -358,7 +358,7 @@ This roadmap tracks the 7 core implementation stories for Bloom Scroll, generate
 - [ ] Performance optimization
 - [x] Production deployment exists (`almanac.solar`, `api.almanac.solar`)
 - [x] Production docs exposure hardened
-- [ ] Enclii service-health status reports probe health instead of `unknown`
+- [x] Enclii `ps` runtime-health parity implemented upstream in `madfam-org/enclii@03e2847`; release propagation remains.
 
 ---
 
@@ -379,7 +379,7 @@ This roadmap tracks the 7 core implementation stories for Bloom Scroll, generate
 - [ ] Production hardening and observability cleanup
 
 ### Medium Term (Months 2-3)
-- [ ] Integrate OpenAlex (science papers)
+- [x] Integrate OpenAlex (science papers)
 - [ ] Real bias detection with PoliticalBiasBERT
 - [ ] Constructiveness scoring model
 - [ ] User authentication & profiles

@@ -55,7 +55,7 @@ Unlike collaborative filtering (which creates echo chambers), this engine uses a
 ### 3.4. Implementation Notes as of 2026-05-28
 
 - Implemented local ingestion modules: OWID and Are.na aesthetics.
-- Production data includes at least one OpenAlex card, but this repo does not yet contain an OpenAlex ingestion connector.
+- OpenAlex ingestion is implemented through `backend/app/ingestion/openalex.py` and `/api/v1/ingest/openalex`.
 - Bias classification is currently a placeholder in `backend/app/analysis/processor.py`.
 - The finite feed endpoint is implemented at `GET /api/v1/feed` with a 20-card daily limit.
 - Frontend state management is Riverpod, not BLoC.
@@ -118,5 +118,5 @@ When viewing a news item, users can swipe left to reveal the **Perspective Dashb
 
 - Keep production `/docs` and `/openapi.json` hidden through the API environment gate and `scripts/prod-smoke.sh`.
 - Keep STORY-005 backend tests and the new frontend model/config/storage tests passing in CI.
-- Improve Enclii service-health reporting; current CLI observation requires `ENCLII_PROJECT=bloom-scroll` and still reports health as `unknown`.
+- Release Enclii `ps` runtime-health parity from `madfam-org/enclii@03e2847` so CLI status uses the same live health feed as `enclii observe health`; current CLI observation still requires `ENCLII_PROJECT=bloom-scroll`.
 - Keep the precise production bundle check for `http://localhost:8000/api/v1` instead of broad `localhost:` assertions.

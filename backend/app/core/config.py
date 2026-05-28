@@ -34,9 +34,13 @@ class Settings(BaseSettings):
     OPENALEX_EMAIL: str = ""
 
     # Janua Authentication
-    JANUA_API_URL: str = "http://localhost:8000/api/v1"
+    JANUA_API_URL: str = "https://auth.madfam.io/api/v1"
+    JANUA_JWKS_URI: str = "https://auth.madfam.io/.well-known/jwks.json"
+    JANUA_JWT_ISSUER: str = "https://auth.madfam.io"
+    JANUA_JWT_AUDIENCE: str = ""
     JANUA_JWT_SECRET: str = "dev-shared-janua-secret-32chars"
-    JANUA_JWT_ALGORITHM: str = "HS256"
+    JANUA_JWT_ALGORITHM: str = "RS256"
+    JANUA_JWKS_CACHE_SECONDS: int = 300
     AUTH_ENABLED: bool = True
 
     # Model Configuration

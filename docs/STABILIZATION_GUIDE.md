@@ -643,7 +643,7 @@ Current production is Kubernetes/ArgoCD, not Docker Compose. Key manifests live 
 Required hardening items:
 - Keep production `/docs`, `/redoc`, and `/openapi.json` hidden via the environment gate and smoke checks.
 - Keep `CORS_ALLOWED_ORIGINS` explicit.
-- Improve Enclii service-health reporting; CLI use from this checkout requires `ENCLII_PROJECT=bloom-scroll`.
+- Release the Enclii `ps` runtime-health parity patch from `madfam-org/enclii@03e2847`; CLI use from this checkout still requires `ENCLII_PROJECT=bloom-scroll`.
 - Keep `enclii.yaml` status probe scoped to the exact leaked default API base so localhost help text does not fail the production API-base assertion.
 
 **Environment variables**:

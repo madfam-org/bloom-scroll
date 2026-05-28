@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.ingestion.aesthetics import AestheticsConnector, ingest_all_aesthetics
+from app.ingestion.openalex import OpenAlexConnector
 from app.ingestion.owid import OWIDConnector, ingest_all_owid_datasets
 from app.schemas.bloom_card import BloomCardResponse
 
@@ -93,6 +94,62 @@ async def list_available_datasets() -> dict:
     return {
         "datasets": connector.DATASETS,
         "count": len(connector.DATASETS),
+    }
+
+
+@router.post("/openalex", response_model=list[BloomCardResponse])
+async def ingest_openalex_topic(
+    topic_key: str = "renewable_energy",
+    limit: int = 5,
+    db: AsyncSession = Depends(get_db),
+) -> list[BloomCardResponse]:
+    """
+    Ingest scholarly works from OpenAlex.
+
+    Args:
+        topic_key: OpenAlex topic
+            (renewable_energy, public_health, climate_adaptation, materials_science,
+            sustainable_agriculture)
+        limit: Number of works to fetch (default: 5, max: 25)
+
+    Returns:
+        List of created BloomCards
+
+    Example:
+        POST /ingest/openalex?topic_key=renewable_energy&limit=5
+    """
+    connector = OpenAlexConnector()
+    if topic_key not in connector.TOPICS:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Unknown OpenAlex topic: {topic_key}. "
+                f"Available: {list(connector.TOPICS.keys())}"
+            ),
+        )
+
+    cards = await connector.ingest_to_database(db, topic_key, limit)
+    if not cards:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch or process OpenAlex works for {topic_key}",
+        )
+
+    return [BloomCardResponse.model_validate(card) for card in cards]
+
+
+@router.get("/openalex/topics")
+async def list_openalex_topics() -> dict:
+    """
+    List available OpenAlex topics.
+
+    Returns:
+        Dictionary of topic keys mapped to search terms
+    """
+    connector = OpenAlexConnector()
+    return {
+        "topics": connector.TOPICS,
+        "count": len(connector.TOPICS),
     }
 
 

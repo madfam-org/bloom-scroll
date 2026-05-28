@@ -66,6 +66,8 @@ The API router is mounted at `/api/v1`.
 - `POST /api/v1/ingest/owid`
 - `POST /api/v1/ingest/owid/all`
 - `GET /api/v1/ingest/datasets`
+- `POST /api/v1/ingest/openalex`
+- `GET /api/v1/ingest/openalex/topics`
 - `POST /api/v1/ingest/aesthetics`
 - `POST /api/v1/ingest/aesthetics/all`
 - `GET /api/v1/ingest/aesthetics/channels`
@@ -79,7 +81,7 @@ Local docs are available at `http://localhost:8000/docs`. Production-like enviro
 - `DATABASE_URL` is normalized to `postgresql+asyncpg://` in `app/core/database.py`.
 - Runtime CORS middleware reads `CORS_ALLOWED_ORIGINS` in `app/main.py`.
 - `BACKEND_CORS_ORIGINS` exists in settings but is not currently wired into middleware.
-- Auth helpers verify HS256 tokens using `JANUA_JWT_SECRET`; RS256 JWKS verification is not implemented in this repo yet.
+- Auth helpers verify Janua RS256 tokens using `JANUA_JWKS_URI`, `JANUA_JWT_ISSUER`, and optional `JANUA_JWT_AUDIENCE`. HS algorithms are available only when explicitly configured for legacy local development.
 - Docs are disabled when `ENV`, `ENVIRONMENT`, or `PYTHON_ENV` is production-like.
 - `backend/Dockerfile` pre-installs CPU-only torch in the same version range as `pyproject.toml`, copies dependency metadata before `app/`, and uses BuildKit cache mounts so app-only edits do not invalidate the heavy ML dependency layers.
 
@@ -89,10 +91,10 @@ Local docs are available at `http://localhost:8000/docs`. Production-like enviro
 poetry run pytest
 ```
 
-Current backend tests cover health, finite-feed behavior, API validation, and poison-pill ingestion paths.
+Current backend tests cover health, finite-feed behavior, API validation, Janua JWT verification, OpenAlex normalization, and poison-pill ingestion paths.
 
 Focused test command:
 
 ```bash
-poetry run pytest tests/test_health.py tests/test_feeds.py tests/test_ingestion_gauntlet.py
+poetry run pytest tests/test_health.py tests/test_feeds.py tests/test_auth.py tests/test_openalex_ingestion.py tests/test_ingestion_gauntlet.py
 ```

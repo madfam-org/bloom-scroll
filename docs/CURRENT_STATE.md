@@ -20,8 +20,10 @@ This file is the evidence-backed current-state reference for the repo. Historica
   - `https://api.almanac.solar/api/v1/ingest/datasets` returned 3 OWID datasets.
   - `https://almanac.solar/main.dart.js` contains `https://api.almanac.solar/api/v1`, proving the API base URL is baked correctly. It also contains `localhost:8000` in connection-help text, so any status check that asserts no `localhost:` substring will false-positive.
 - Enclii-first production observation on 2026-05-28:
-  - `ENCLII_PROJECT=bloom-scroll enclii ps --env production` reported `bloom-scroll-web` and `bloom-scroll-api` running `1/1` on `argocd-db36c34`.
-  - Recent Enclii logs showed repeated HTTP 200 probe responses for web `/` and API `/health`.
+  - Source-built `madfam-org/enclii@03e2847` `ENCLII_PROJECT=bloom-scroll go run ./packages/cli/cmd/enclii --api-endpoint https://api.enclii.dev ps --env production` reported `bloom-scroll-web` and `bloom-scroll-api` running, `healthy`, and `2/2` on `argocd-0562410`.
+  - `ENCLII_PROJECT=bloom-scroll enclii ops apps status bloom-scroll-services --json` reported Argo health `Healthy`, sync `Synced`, revision `0562410fc0999760fb8da39da0bd37089e010fa3`, and the final digest-pinned API/web images.
+  - `ENCLII_PROJECT=bloom-scroll enclii ops apps diff bloom-scroll-services --json` reported drift count `0`.
+  - `ENCLII_PROJECT=bloom-scroll enclii observe health --service ... --json` reported both API and web services `healthy`.
   - `scripts/prod-smoke.sh` passed against `https://almanac.solar` and `https://api.almanac.solar`.
 
 ## Current Implementation
@@ -39,6 +41,8 @@ This file is the evidence-backed current-state reference for the repo. Historica
   - `POST /api/v1/ingest/owid`
   - `POST /api/v1/ingest/owid/all`
   - `GET /api/v1/ingest/datasets`
+  - `POST /api/v1/ingest/openalex`
+  - `GET /api/v1/ingest/openalex/topics`
   - `POST /api/v1/ingest/aesthetics`
   - `POST /api/v1/ingest/aesthetics/all`
   - `GET /api/v1/ingest/aesthetics/channels`
@@ -51,6 +55,8 @@ This file is the evidence-backed current-state reference for the repo. Historica
 - CORS allowlist is controlled in `backend/app/main.py` by `CORS_ALLOWED_ORIGINS`. The `BACKEND_CORS_ORIGINS` setting in `backend/app/core/config.py` is currently not what the running middleware reads.
 - Database URL normalization accepts `postgres://`, `postgresql://`, `postgresql+psycopg2://`, and `postgresql+psycopg://`, converting them to `postgresql+asyncpg://`.
 - Sentence-BERT embeddings are implemented via `backend/app/analysis/processor.py`.
+- Janua authentication verifies RS256 tokens through `JANUA_JWKS_URI` with issuer and optional audience checks. HS algorithms are still supported only when explicitly configured for legacy development.
+- OpenAlex ingestion is implemented in `backend/app/ingestion/openalex.py` and exposes source identifiers, authors, abstracts, concepts, citation counts, and PDF URLs in the card payload.
 - Bias detection is still a placeholder returning `None`.
 - Celery is scaffolded, but `ingest_owid_all_task` returns `{"status": "not_implemented"}`.
 
@@ -120,10 +126,8 @@ flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000
 
 ## Known Gaps
 
-- Enclii `ps` reports service health as `unknown` even while logs and public smoke checks show healthy 200 responses; the status adapter should expose probe health more clearly.
+- The Enclii CLI health-parity fix is committed in `madfam-org/enclii@03e2847` and should be released through the platform CLI distribution before operators can rely on it from every workstation.
 - Enclii production commands from a fresh checkout require explicit project context, for example `ENCLII_PROJECT=bloom-scroll enclii ps --env production`.
-- Production contains at least one `OPENALEX` card, but this repo currently has no OpenAlex ingestion module; it is seeded or ingested outside the implemented local connectors.
-- Janua/JWKS auth is described in ecosystem guidance, but local code verifies HS256 with `JANUA_JWT_SECRET`; RS256 JWKS verification is not implemented in this repo.
 - Milvus exists in full local Compose and dependencies, but current application code uses PostgreSQL + pgvector for embeddings.
 - Poetry lockfile adoption remains deferred because PyTorch CPU-wheel source handling needs to stay platform-safe for both Linux images and macOS local development.
 
@@ -133,7 +137,9 @@ flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000
 - `frontend/lib/services/api_config.dart` comments now describe the exact production-bundle check instead of a broad localhost grep.
 - Root `docker-compose.yml` no longer references the missing `backend/Dockerfile.worker` and now maps the API container's port `8000` to host port `5200`.
 - Backend tests now target current modules/endpoints; `poetry run pytest` passes 20 tests and `poetry run mypy . --ignore-missing-imports` is clean.
-- `scripts/prod-smoke.sh` now checks web health, API health, feed completion, bundle API base, and production docs hiding; it passed against production after the `argocd-db36c34` rollout.
+- `scripts/prod-smoke.sh` now checks web health, API health, feed completion, bundle API base, and production docs hiding; it passed against production after the `argocd-0562410` rollout.
 - CI now validates the root Compose file and runs `flutter test`; the deploy workflow now runs production smoke checks after the shared Enclii build/publish workflow.
 - The shared Enclii build/publish workflow was patched in `madfam-org/enclii@0a72ed7` to authenticate to GHCR before digest-pin cosign verification of private packages.
 - Backend image dependency drift was narrowed by constraining torch to `>=2.1,<2.3`; `backend/Dockerfile` now keeps dependency installation ahead of `app/`, removes the unused `torchvision` preinstall, and uses BuildKit cache mounts for pip/Poetry.
+- Janua auth now verifies RS256 tokens through JWKS and includes tests for valid keys, unknown `kid` rejection, and explicit HS256 fallback.
+- OpenAlex ingestion now has a repo-owned connector, endpoints, and tests for abstract reconstruction and malformed-work rejection.
