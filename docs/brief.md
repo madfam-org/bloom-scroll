@@ -52,5 +52,5 @@ Information-conscious individuals suffering from news fatigue who want:
 
 ---
 
-**Status**: Production alpha with stabilization gaps
-**Next Step**: Keep production smoke checks green after digest-pin rollouts, then resolve Poetry lockfile adoption without breaking PyTorch CPU wheels across Linux images and macOS local development.
+**Status**: Production alpha with narrowed stability gaps
+**Next Step**: Keep production smoke checks and CI green after digest-pin rollouts, then expand end-to-end coverage and observability.

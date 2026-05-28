@@ -80,6 +80,7 @@ Key observed facts:
 - Public API health: `https://api.almanac.solar/health` returns healthy with database OK, 8 indexed embeddings, and 8 cards.
 - The production Flutter bundle is baked to `https://api.almanac.solar/api/v1`.
 - `/docs` and `/openapi.json` are hidden in production and covered by `scripts/prod-smoke.sh`.
+- Backend installs are deterministic through `backend/poetry.lock`; production ML wheels are pinned separately in `backend/requirements-ml-linux-cpu.txt` so Linux images use CPU-only PyTorch.
 - Enclii reports the `bloom-scroll-services` Argo app healthy/synced at `argocd-6aa4ae5` with zero drift.
 - Root `docker-compose.yml` is a lightweight compatibility stack on API port `5200`; `infrastructure/` remains the preferred local development path.
 
@@ -303,6 +304,7 @@ flutter build web --release --dart-define=API_BASE_URL=http://localhost:8000
 - ✅ **Auth hardening**: Janua RS256/JWKS verification is implemented with issuer and optional audience checks.
 - ✅ **OpenAlex ingestion**: Science cards now have a repo-owned connector and API endpoints.
 - ✅ **Control-plane observability release**: Enclii CLI `v1.0.0-alpha.1` reports runtime health correctly from the distributed GitHub release artifact.
+- ✅ **Backend dependency determinism**: `backend/poetry.lock` is committed, CPU-only ML wheels are pinned separately for Docker, and lockfile guard tests prevent CUDA drift.
 
 See [ROADMAP.md](docs/ROADMAP.md) for detailed tracking.
 

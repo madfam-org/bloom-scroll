@@ -164,7 +164,7 @@ This roadmap tracks the 7 core implementation stories for Bloom Scroll, generate
 - `backend/app/curation/bloom_algorithm.py`
 - `backend/app/analysis/processor.py`
 - `backend/app/api/routes.py`
-- `backend/pyproject.toml` (sentence-transformers, torch, pgvector)
+- `backend/pyproject.toml` and ML requirement pins (pgvector plus optional embedding runtime)
 
 **Documentation**: See [STORY-004-IMPLEMENTATION.md](STORY-004-IMPLEMENTATION.md) for detailed implementation.
 
@@ -359,6 +359,7 @@ This roadmap tracks the 7 core implementation stories for Bloom Scroll, generate
 - [x] Production deployment exists (`almanac.solar`, `api.almanac.solar`)
 - [x] Production docs exposure hardened
 - [x] Enclii `ps` runtime-health parity implemented upstream in `madfam-org/enclii@03e2847` and released as Enclii CLI `v1.0.0-alpha.1`; the distributed artifact was verified against Bloom production.
+- [x] Backend Poetry lockfile committed; heavy ML wheels isolated into pinned Linux CPU requirements with pytest coverage for lock and Docker safety.
 
 ---
 
@@ -368,8 +369,9 @@ This roadmap tracks the 7 core implementation stories for Bloom Scroll, generate
 1. ✅ Complete STORY-007 implementation
 2. ✅ Update all documentation
 3. ✅ Repair STORY-005 test imports/endpoints
-4. 🛠️ Hide production `/docs` and `/openapi.json`
-5. 🔜 Add frontend stress tests and end-to-end testing
+4. ✅ Hide production `/docs` and `/openapi.json`
+5. ✅ Commit backend dependency lockfile without regressing CPU-only Linux images
+6. 🔜 Add frontend stress tests and end-to-end testing
 
 ### Short Term (Weeks 2-4)
 - [ ] Complete STORY-005 acceptance criteria

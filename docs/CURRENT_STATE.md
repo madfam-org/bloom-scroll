@@ -128,7 +128,6 @@ flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000
 
 - Enclii production commands from a fresh checkout require explicit project context, for example `ENCLII_PROJECT=bloom-scroll enclii ps --env production`.
 - Milvus exists in full local Compose and dependencies, but current application code uses PostgreSQL + pgvector for embeddings.
-- Poetry lockfile adoption remains deferred because PyTorch CPU-wheel source handling needs to stay platform-safe for both Linux images and macOS local development.
 
 ## Resolved During This Audit
 
@@ -139,6 +138,7 @@ flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000
 - `scripts/prod-smoke.sh` now checks web health, API health, feed completion, bundle API base, and production docs hiding; it passed against production after the `argocd-6aa4ae5` rollout.
 - CI now validates the root Compose file and runs `flutter test`; the deploy workflow now runs production smoke checks after the shared Enclii build/publish workflow.
 - The shared Enclii build/publish workflow was patched in `madfam-org/enclii@0a72ed7`, and the in-repo Enclii CI digest verifier in `madfam-org/enclii@f919192`, to authenticate to GHCR before digest-pin cosign verification of private packages. `madfam-org/enclii@b763d92` added tag-triggered CLI release artifacts, and `v1.0.0-alpha.1` was verified against Bloom production.
-- Backend image dependency drift was narrowed by constraining torch to `>=2.1,<2.3`; `backend/Dockerfile` now keeps dependency installation ahead of `app/`, removes the unused `torchvision` preinstall, and uses BuildKit cache mounts for pip/Poetry.
+- Backend image dependency drift was narrowed by isolating heavy ML wheels from Poetry resolution; `backend/Dockerfile` installs `requirements-ml-linux-cpu.txt` before `poetry install`, keeps dependency installation ahead of `app/`, removes the unused `torchvision` preinstall, and uses BuildKit cache mounts for pip/Poetry.
+- `backend/poetry.lock` is now committed for deterministic standard backend installs. `requirements-ml-linux-cpu.txt` pins Linux production ML wheels to CPU-only PyTorch (`torch==2.2.2+cpu`) plus `sentence-transformers==5.5.1` and `transformers==4.57.6`; `backend/tests/test_dependency_lock.py` guards that Poetry does not reintroduce torch, triton, transformers, sentence-transformers, or `nvidia-*` packages.
 - Janua auth now verifies RS256 tokens through JWKS and includes tests for valid keys, unknown `kid` rejection, and explicit HS256 fallback.
 - OpenAlex ingestion now has a repo-owned connector, endpoints, and tests for abstract reconstruction and malformed-work rejection.

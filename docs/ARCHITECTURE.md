@@ -515,7 +515,11 @@ The root `docker-compose.yml` is a compatibility stack on host API port `5200`; 
 Observed production gaps on 2026-05-28:
 - Enclii CLI observation requires explicit project context, for example `ENCLII_PROJECT=bloom-scroll enclii ps --env production`.
 - The Enclii CLI `ps` health-parity fix is implemented upstream in `madfam-org/enclii@03e2847` and released as Enclii CLI `v1.0.0-alpha.1`.
-- Poetry lockfile adoption remains deferred because PyTorch CPU-wheel source handling needs to stay platform-safe for Linux images and macOS local development.
+
+Dependency determinism:
+- `backend/poetry.lock` is committed for the standard backend dependency graph.
+- Heavy ML runtime wheels are isolated from Poetry in `requirements-ml-linux-cpu.txt` so production images install `torch 2.2.2+cpu` from the PyTorch CPU index before Poetry runs.
+- `backend/tests/test_dependency_lock.py` guards the lock and Dockerfile so Poetry cannot reintroduce torch/CUDA packages into the standard install path.
 
 ---
 

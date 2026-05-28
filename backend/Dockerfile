@@ -16,14 +16,13 @@ ENV PATH="/root/.local/bin:$PATH"
 WORKDIR /app
 
 # Copy dependency files first so heavy ML dependencies stay cached across app-only changes.
-COPY pyproject.toml poetry.lock* README.md ./
+COPY pyproject.toml poetry.lock* README.md requirements-ml-linux-cpu.txt ./
 
 # Pre-install heavy ML deps with CPU-only torch (~500MB vs ~5GB CUDA).
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install "torch>=2.1,<2.3" --index-url https://download.pytorch.org/whl/cpu && \
-    pip install sentence-transformers transformers
+    pip install -r requirements-ml-linux-cpu.txt
 
-# Install remaining deps without re-resolving torch (--no-root skips project install).
+# Install remaining deps without re-resolving ML wheels (--no-root skips project install).
 RUN --mount=type=cache,target=/root/.cache/pip \
     --mount=type=cache,target=/root/.cache/pypoetry \
     poetry config virtualenvs.create false \

@@ -6,9 +6,10 @@
 
 Current stabilization reality:
 - Production is live at `almanac.solar` and `api.almanac.solar`.
-- API health is green, but `/docs` and `/openapi.json` are public in production until the staged `ENV=production` deployment rolls out.
+- API health is green, and `/docs`, `/redoc`, and `/openapi.json` are hidden in production by the environment gate and smoke checks.
 - Error handlers and Flutter `ErrorBoundary` are wired.
 - Poison-pill tests were repaired to current module names and pass locally.
+- Backend dependency resolution is locked; Linux production images install pinned CPU-only ML wheels before Poetry, and a pytest guard prevents Poetry from reintroducing torch/CUDA packages.
 - Root `docker-compose.yml` is a compatibility stack; use `infrastructure/` Compose files for primary local development.
 
 ---
@@ -696,22 +697,23 @@ services:
 1. ✅ **Add error handlers to FastAPI** (`error_handlers.py` created)
 2. ✅ **Add ErrorBoundary to Flutter** (`error_boundary.dart` created)
 3. ✅ **Repair poison pill tests**
-4. 🛠️ **Hide production API docs** by rolling out the staged `ENV=production`
-5. **Add validation to all API endpoints** (Pydantic models)
+4. ✅ **Hide production API docs** with `ENV=production` and smoke coverage
+5. ✅ **Commit backend lockfile** with Linux CPU-only ML wheel coverage
+6. **Add validation to all API endpoints** (Pydantic models)
 
 ### Priority 2 (High - This Week)
-6. **Implement retry logic** in API service (exponential backoff)
-7. **Add database connection pooling** (already in schema, verify config)
-8. ✅ **Add health check endpoint** (`/health`)
-9. **Profile Flutter performance** (DevTools)
-10. **Add null checks to all `fromJson` methods**
+7. **Implement retry logic** in API service (exponential backoff)
+8. **Add database connection pooling** (already in schema, verify config)
+9. ✅ **Add health check endpoint** (`/health`)
+10. **Profile Flutter performance** (DevTools)
+11. **Add null checks to all `fromJson` methods**
 
 ### Priority 3 (Medium - This Month)
-11. **Add Redis caching** for frequent queries
-12. **Implement rate limiting** (slowapi)
-13. **Add integration tests** (end-to-end feed flow)
-14. **Set up Sentry** for production error tracking
-15. **Load test with Locust** (simulate 100+ concurrent users)
+12. **Add Redis caching** for frequent queries
+13. **Implement rate limiting** (slowapi)
+14. **Add integration tests** (end-to-end feed flow)
+15. **Set up Sentry** for production error tracking
+16. **Load test with Locust** (simulate 100+ concurrent users)
 
 ---
 
@@ -745,4 +747,4 @@ services:
 - Load testing
 - Caching layer
 
-The app is live in production alpha, but stabilization is not complete. Verify the production docs rollout first; then expand frontend coverage, monitoring, and load testing.
+The app is live in production alpha, but stabilization is not complete. Next priorities are frontend end-to-end coverage, monitoring, and load testing.

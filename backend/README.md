@@ -10,7 +10,7 @@ FastAPI backend for Bloom Scroll / Almanac. Last audited against code and produc
 - PostgreSQL + pgvector for card storage and embeddings
 - Redis and Celery are configured; the current Celery ingestion task is scaffolded and returns `not_implemented`
 - Sentence-BERT (`sentence-transformers/all-MiniLM-L6-v2`) for 384-dimensional embeddings
-- PyTorch is constrained to `>=2.1,<2.3`; newer unconstrained releases currently break macOS x86_64 local installs and increase image drift risk.
+- Heavy ML runtime wheels are pinned outside Poetry: production Linux images use `requirements-ml-linux-cpu.txt`, and local embedding work can install `requirements-ml-local.txt`.
 - Bias detection is a placeholder in `app/analysis/processor.py`
 
 Milvus appears in dependencies and full local Compose, but current application code stores/query embeddings through PostgreSQL + pgvector.
@@ -33,6 +33,9 @@ backend/
 ├── tests/             # Pytest tests
 ├── Dockerfile
 ├── pyproject.toml
+├── poetry.lock
+├── requirements-ml-linux-cpu.txt
+├── requirements-ml-local.txt
 └── run_dev.sh
 ```
 
@@ -50,6 +53,7 @@ Install dependencies, migrate, and run:
 ```bash
 cd ../backend
 poetry install
+python -m pip install -r requirements-ml-local.txt  # optional; needed for real embeddings
 poetry run alembic upgrade head
 poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
@@ -83,7 +87,9 @@ Local docs are available at `http://localhost:8000/docs`. Production-like enviro
 - `BACKEND_CORS_ORIGINS` exists in settings but is not currently wired into middleware.
 - Auth helpers verify Janua RS256 tokens using `JANUA_JWKS_URI`, `JANUA_JWT_ISSUER`, and optional `JANUA_JWT_AUDIENCE`. HS algorithms are available only when explicitly configured for legacy local development.
 - Docs are disabled when `ENV`, `ENVIRONMENT`, or `PYTHON_ENV` is production-like.
-- `backend/Dockerfile` pre-installs CPU-only torch in the same version range as `pyproject.toml`, copies dependency metadata before `app/`, and uses BuildKit cache mounts so app-only edits do not invalidate the heavy ML dependency layers.
+- `backend/poetry.lock` is committed for the standard backend dependency graph.
+- `requirements-ml-linux-cpu.txt` pins `torch==2.2.2+cpu`, `sentence-transformers==5.5.1`, and `transformers==4.57.6`; `tests/test_dependency_lock.py` guards that Poetry does not reintroduce torch/CUDA packages and that Docker installs the CPU requirements first.
+- `backend/Dockerfile` pre-installs CPU-only ML wheels, copies dependency metadata before `app/`, and uses BuildKit cache mounts so app-only edits do not invalidate the heavy ML dependency layers.
 
 ## Tests
 
@@ -91,7 +97,7 @@ Local docs are available at `http://localhost:8000/docs`. Production-like enviro
 poetry run pytest
 ```
 
-Current backend tests cover health, finite-feed behavior, API validation, Janua JWT verification, OpenAlex normalization, and poison-pill ingestion paths.
+Current backend tests cover health, finite-feed behavior, API validation, Janua JWT verification, OpenAlex normalization, dependency lock safety, and poison-pill ingestion paths.
 
 Focused test command:
 

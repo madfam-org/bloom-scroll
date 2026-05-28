@@ -1,0 +1,8 @@
+--index-url https://download.pytorch.org/whl/cpu
+--extra-index-url https://pypi.org/simple
+
+# Heavy ML runtime wheels are installed before Poetry in Docker so Linux images
+# use CPU-only PyTorch instead of the much larger CUDA-enabled PyPI wheel set.
+torch==2.2.2+cpu
+sentence-transformers==5.5.1
+transformers==4.57.6
