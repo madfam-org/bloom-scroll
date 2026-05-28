@@ -302,7 +302,7 @@ flutter build web --release --dart-define=API_BASE_URL=http://localhost:8000
 - ✅ **Production docs exposure**: `/docs` and `/openapi.json` are hidden on `api.almanac.solar` by the production environment gate and covered by `scripts/prod-smoke.sh`.
 - ✅ **Auth hardening**: Janua RS256/JWKS verification is implemented with issuer and optional audience checks.
 - ✅ **OpenAlex ingestion**: Science cards now have a repo-owned connector and API endpoints.
-- 🚧 **Control-plane observability release**: source-built Enclii `ps` from `madfam-org/enclii@f919192` reports runtime health correctly; propagate the patch through the distributed CLI.
+- ✅ **Control-plane observability release**: Enclii CLI `v1.0.0-alpha.1` reports runtime health correctly from the distributed GitHub release artifact.
 
 See [ROADMAP.md](docs/ROADMAP.md) for detailed tracking.
 

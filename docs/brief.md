@@ -53,4 +53,4 @@ Information-conscious individuals suffering from news fatigue who want:
 ---
 
 **Status**: Production alpha with stabilization gaps
-**Next Step**: Release the Enclii `ps` runtime-health parity patch through the distributed CLI, keep production smoke checks green after digest-pin rollouts, and continue image-build/runtime hardening.
+**Next Step**: Keep production smoke checks green after digest-pin rollouts, then resolve Poetry lockfile adoption without breaking PyTorch CPU wheels across Linux images and macOS local development.

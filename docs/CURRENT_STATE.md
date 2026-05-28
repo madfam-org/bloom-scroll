@@ -20,7 +20,7 @@ This file is the evidence-backed current-state reference for the repo. Historica
   - `https://api.almanac.solar/api/v1/ingest/datasets` returned 3 OWID datasets.
   - `https://almanac.solar/main.dart.js` contains `https://api.almanac.solar/api/v1`, proving the API base URL is baked correctly. It also contains `localhost:8000` in connection-help text, so any status check that asserts no `localhost:` substring will false-positive.
 - Enclii-first production observation on 2026-05-28:
-  - Source-built `madfam-org/enclii@f919192` `ENCLII_PROJECT=bloom-scroll go run ./packages/cli/cmd/enclii --api-endpoint https://api.enclii.dev ps --env production` reported `bloom-scroll-web` and `bloom-scroll-api` running, `healthy`, and `2/2` on `argocd-6aa4ae5`.
+  - Released Enclii CLI `v1.0.0-alpha.1` (`madfam-org/enclii@b763d92`) `ENCLII_PROJECT=bloom-scroll enclii --api-endpoint https://api.enclii.dev ps --env production` reported `bloom-scroll-web` and `bloom-scroll-api` running, `healthy`, and `2/2` on `argocd-6aa4ae5`.
   - `ENCLII_PROJECT=bloom-scroll enclii ops apps status bloom-scroll-services --json` reported Argo health `Healthy`, sync `Synced`, revision `6aa4ae551fe9287d2d49210791fc69068266b67c`, and digest-pinned images `api@sha256:3926f1c461c77777f1d2ec95e851ad1d62f2b47b1f569a75cfc2e555b19d3794` plus `web@sha256:05c726939e02a7a9a35ffb1d398f104a5848abd353a7e968ba4c23dc2fd4ca96`.
   - `ENCLII_PROJECT=bloom-scroll enclii ops apps diff bloom-scroll-services --json` reported drift count `0`.
   - `ENCLII_PROJECT=bloom-scroll enclii observe health --service ... --json` reported both API and web services `healthy`.
@@ -126,7 +126,6 @@ flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000
 
 ## Known Gaps
 
-- The Enclii CLI health-parity fix is committed in `madfam-org/enclii@03e2847`, with follow-up CI digest-verification hardening in `madfam-org/enclii@f919192`; it should be released through the platform CLI distribution before operators can rely on it from every workstation.
 - Enclii production commands from a fresh checkout require explicit project context, for example `ENCLII_PROJECT=bloom-scroll enclii ps --env production`.
 - Milvus exists in full local Compose and dependencies, but current application code uses PostgreSQL + pgvector for embeddings.
 - Poetry lockfile adoption remains deferred because PyTorch CPU-wheel source handling needs to stay platform-safe for both Linux images and macOS local development.
@@ -139,7 +138,7 @@ flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000
 - Backend tests now target current modules/endpoints; `poetry run pytest` passes 26 tests and `poetry run mypy . --ignore-missing-imports` is clean.
 - `scripts/prod-smoke.sh` now checks web health, API health, feed completion, bundle API base, and production docs hiding; it passed against production after the `argocd-6aa4ae5` rollout.
 - CI now validates the root Compose file and runs `flutter test`; the deploy workflow now runs production smoke checks after the shared Enclii build/publish workflow.
-- The shared Enclii build/publish workflow was patched in `madfam-org/enclii@0a72ed7`, and the in-repo Enclii CI digest verifier in `madfam-org/enclii@f919192`, to authenticate to GHCR before digest-pin cosign verification of private packages.
+- The shared Enclii build/publish workflow was patched in `madfam-org/enclii@0a72ed7`, and the in-repo Enclii CI digest verifier in `madfam-org/enclii@f919192`, to authenticate to GHCR before digest-pin cosign verification of private packages. `madfam-org/enclii@b763d92` added tag-triggered CLI release artifacts, and `v1.0.0-alpha.1` was verified against Bloom production.
 - Backend image dependency drift was narrowed by constraining torch to `>=2.1,<2.3`; `backend/Dockerfile` now keeps dependency installation ahead of `app/`, removes the unused `torchvision` preinstall, and uses BuildKit cache mounts for pip/Poetry.
 - Janua auth now verifies RS256 tokens through JWKS and includes tests for valid keys, unknown `kid` rejection, and explicit HS256 fallback.
 - OpenAlex ingestion now has a repo-owned connector, endpoints, and tests for abstract reconstruction and malformed-work rejection.

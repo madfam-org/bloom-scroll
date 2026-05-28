@@ -358,7 +358,7 @@ This roadmap tracks the 7 core implementation stories for Bloom Scroll, generate
 - [ ] Performance optimization
 - [x] Production deployment exists (`almanac.solar`, `api.almanac.solar`)
 - [x] Production docs exposure hardened
-- [x] Enclii `ps` runtime-health parity implemented upstream in `madfam-org/enclii@03e2847`; source-built CLI verified against production at `madfam-org/enclii@f919192`; release propagation remains.
+- [x] Enclii `ps` runtime-health parity implemented upstream in `madfam-org/enclii@03e2847` and released as Enclii CLI `v1.0.0-alpha.1`; the distributed artifact was verified against Bloom production.
 
 ---
 

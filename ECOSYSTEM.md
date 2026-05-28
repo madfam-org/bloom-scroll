@@ -217,8 +217,8 @@ Evidence-backed current state is maintained in `docs/CURRENT_STATE.md`.
 - The same JS bundle also contains `localhost:8000` inside connection-help text, so the repo narrows the status assertion to the exact leaked default API base (`http://localhost:8000/api/v1`).
 - Enclii-first production observation requires explicit project context from this checkout, for example `ENCLII_PROJECT=bloom-scroll enclii ps --env production`.
 - `ENCLII_PROJECT=bloom-scroll enclii ops apps status bloom-scroll-services --json` reported Argo health `Healthy` and sync `Synced` at revision `6aa4ae551fe9287d2d49210791fc69068266b67c`; `enclii ops apps diff` reported drift count `0`.
-- `ENCLII_PROJECT=bloom-scroll enclii observe health --service ... --json` reported both `bloom-scroll-api` and `bloom-scroll-web` healthy. Source-built Enclii `ps` from `madfam-org/enclii@f919192` reported both services running, healthy, `2/2`, on `argocd-6aa4ae5`.
-- The shared Enclii build/publish workflow was patched in `madfam-org/enclii@0a72ed7`, and the in-repo Enclii CI digest verifier in `madfam-org/enclii@f919192`, to authenticate to GHCR during digest-pin cosign verification for private packages.
+- `ENCLII_PROJECT=bloom-scroll enclii observe health --service ... --json` reported both `bloom-scroll-api` and `bloom-scroll-web` healthy. The released Enclii CLI `v1.0.0-alpha.1` reported both services running, healthy, `2/2`, on `argocd-6aa4ae5`.
+- The shared Enclii build/publish workflow was patched in `madfam-org/enclii@0a72ed7`, and the in-repo Enclii CI digest verifier in `madfam-org/enclii@f919192`, to authenticate to GHCR during digest-pin cosign verification for private packages. `madfam-org/enclii@b763d92` added GitHub Release artifacts for CLI distribution.
 
 ### Full onboarding (only used when adding a brand-new service)
 
