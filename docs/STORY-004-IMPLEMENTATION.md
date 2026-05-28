@@ -340,7 +340,7 @@ Echo Chamber    Serendipity Zone    Irrelevant
 **Added to `pyproject.toml`**:
 ```toml
 sentence-transformers = "^2.2.2"  # NLP embeddings
-torch = "^2.0.0"                   # Required by sentence-transformers
+torch = ">=2.1,<2.3"               # Required by sentence-transformers; bounded for local/image wheel stability
 pgvector = "^0.2.0"                # PostgreSQL vector extension
 ```
 

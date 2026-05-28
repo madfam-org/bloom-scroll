@@ -116,7 +116,7 @@ When viewing a news item, users can swipe left to reveal the **Perspective Dashb
 
 ## 7. Current Hardening Priorities
 
-- Hide production `/docs` and `/openapi.json` by aligning the API deployment environment with the code gate.
-- Keep STORY-005 backend tests passing and add frontend tests.
-- Resolve Enclii CLI `PROJECT_NOT_FOUND` from this repo context.
-- Replace broad `localhost:` status assertions with a precise check for the active API base URL.
+- Keep production `/docs` and `/openapi.json` hidden through the API environment gate and `scripts/prod-smoke.sh`.
+- Keep STORY-005 backend tests and the new frontend model/config/storage tests passing in CI.
+- Improve Enclii service-health reporting; current CLI observation requires `ENCLII_PROJECT=bloom-scroll` and still reports health as `unknown`.
+- Keep the precise production bundle check for `http://localhost:8000/api/v1` instead of broad `localhost:` assertions.

@@ -298,7 +298,8 @@ flutter build web --release --dart-define=API_BASE_URL=http://localhost:8000
 
 ### Needs Verification / Hardening 🚧
 - ✅ **STORY-005 backend repair**: Poison pill and feed tests now target current modules/endpoints.
-- 🚧 **Production docs exposure**: `/docs` and `/openapi.json` are public on `api.almanac.solar`; manifest remediation is staged.
+- ✅ **Production docs exposure**: `/docs` and `/openapi.json` are hidden on `api.almanac.solar` by the production environment gate and covered by `scripts/prod-smoke.sh`.
+- 🚧 **Control-plane observability**: Enclii service health still needs clearer probe status reporting; current production checks rely on Enclii logs plus public smoke tests.
 
 See [ROADMAP.md](docs/ROADMAP.md) for detailed tracking.
 

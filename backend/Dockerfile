@@ -1,5 +1,6 @@
+# syntax=docker/dockerfile:1.7
 # Multi-stage build for Bloom Scroll Backend
-FROM python:3.11-slim as builder
+FROM python:3.11-slim AS builder
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -14,18 +15,22 @@ ENV PATH="/root/.local/bin:$PATH"
 # Set working directory
 WORKDIR /app
 
-# Copy dependency files
+# Copy dependency files first so heavy ML dependencies stay cached across app-only changes.
 COPY pyproject.toml poetry.lock* README.md ./
-COPY app ./app
 
-# Pre-install heavy ML deps with CPU-only wheels (~500MB vs ~5GB CUDA)
-RUN pip install --no-cache-dir \
-    torch torchvision --index-url https://download.pytorch.org/whl/cpu && \
-    pip install --no-cache-dir sentence-transformers transformers
+# Pre-install heavy ML deps with CPU-only torch (~500MB vs ~5GB CUDA).
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install "torch>=2.1,<2.3" --index-url https://download.pytorch.org/whl/cpu && \
+    pip install sentence-transformers transformers
 
-# Install remaining deps without re-resolving torch (--no-root skips project install)
-RUN poetry config virtualenvs.create false \
+# Install remaining deps without re-resolving torch (--no-root skips project install).
+RUN --mount=type=cache,target=/root/.cache/pip \
+    --mount=type=cache,target=/root/.cache/pypoetry \
+    poetry config virtualenvs.create false \
     && poetry install --only main --no-interaction --no-ansi --no-root
+
+# Copy application code after dependency installation.
+COPY app ./app
 
 # Install the project package itself (lightweight, just registers app/)
 RUN pip install --no-deps -e .

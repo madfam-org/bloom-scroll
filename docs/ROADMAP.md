@@ -174,7 +174,7 @@ This roadmap tracks the 7 core implementation stories for Bloom Scroll, generate
 **Poison Pill & Stability Tests**
 
 **Epic**: Quality Assurance
-**Status**: ✅ Backend repaired; frontend tests pending
+**Status**: ✅ Backend and frontend stability gates repaired
 **Priority**: High
 
 #### Objectives
@@ -353,11 +353,12 @@ This roadmap tracks the 7 core implementation stories for Bloom Scroll, generate
 
 - [x] Design system documentation
 - [x] Backend poison pill tests repaired and passing
+- [x] Frontend model/config/storage tests added to CI
 - [ ] Error boundary testing
 - [ ] Performance optimization
 - [x] Production deployment exists (`almanac.solar`, `api.almanac.solar`)
-- [ ] Production docs exposure hardened
-- [ ] Enclii project/context gap resolved
+- [x] Production docs exposure hardened
+- [ ] Enclii service-health status reports probe health instead of `unknown`
 
 ---
 

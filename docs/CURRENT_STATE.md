@@ -125,6 +125,7 @@ flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000
 - Production contains at least one `OPENALEX` card, but this repo currently has no OpenAlex ingestion module; it is seeded or ingested outside the implemented local connectors.
 - Janua/JWKS auth is described in ecosystem guidance, but local code verifies HS256 with `JANUA_JWT_SECRET`; RS256 JWKS verification is not implemented in this repo.
 - Milvus exists in full local Compose and dependencies, but current application code uses PostgreSQL + pgvector for embeddings.
+- Poetry lockfile adoption remains deferred because PyTorch CPU-wheel source handling needs to stay platform-safe for both Linux images and macOS local development.
 
 ## Resolved During This Audit
 
@@ -134,3 +135,5 @@ flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000
 - Backend tests now target current modules/endpoints; `poetry run pytest` passes 20 tests and `poetry run mypy . --ignore-missing-imports` is clean.
 - `scripts/prod-smoke.sh` now checks web health, API health, feed completion, bundle API base, and production docs hiding; it passed against production after the `argocd-db36c34` rollout.
 - CI now validates the root Compose file and runs `flutter test`; the deploy workflow now runs production smoke checks after the shared Enclii build/publish workflow.
+- The shared Enclii build/publish workflow was patched in `madfam-org/enclii@0a72ed7` to authenticate to GHCR before digest-pin cosign verification of private packages.
+- Backend image dependency drift was narrowed by constraining torch to `>=2.1,<2.3`; `backend/Dockerfile` now keeps dependency installation ahead of `app/`, removes the unused `torchvision` preinstall, and uses BuildKit cache mounts for pip/Poetry.

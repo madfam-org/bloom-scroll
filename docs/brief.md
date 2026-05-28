@@ -53,4 +53,4 @@ Information-conscious individuals suffering from news fatigue who want:
 ---
 
 **Status**: Production alpha with stabilization gaps
-**Next Step**: Verify production docs exposure is closed after rollout, add frontend tests, and resolve Enclii project/context observability gap
+**Next Step**: Improve Enclii service-health reporting, keep production smoke checks green after digest-pin rollouts, and complete the Janua RS256/JWKS auth alignment.

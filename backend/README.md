@@ -10,6 +10,7 @@ FastAPI backend for Bloom Scroll / Almanac. Last audited against code and produc
 - PostgreSQL + pgvector for card storage and embeddings
 - Redis and Celery are configured; the current Celery ingestion task is scaffolded and returns `not_implemented`
 - Sentence-BERT (`sentence-transformers/all-MiniLM-L6-v2`) for 384-dimensional embeddings
+- PyTorch is constrained to `>=2.1,<2.3`; newer unconstrained releases currently break macOS x86_64 local installs and increase image drift risk.
 - Bias detection is a placeholder in `app/analysis/processor.py`
 
 Milvus appears in dependencies and full local Compose, but current application code stores/query embeddings through PostgreSQL + pgvector.
@@ -71,7 +72,7 @@ The API router is mounted at `/api/v1`.
 - `POST /api/v1/interactions/track`
 - `GET /api/v1/interactions/recent/{user_id}`
 
-Local docs are available at `http://localhost:8000/docs`. Production currently exposes `/docs` too; that is tracked as a hardening gap in `CURRENT_STATE.md`.
+Local docs are available at `http://localhost:8000/docs`. Production-like environments disable `/docs`, `/redoc`, and `/openapi.json`; `scripts/prod-smoke.sh` checks that on `api.almanac.solar`.
 
 ## Configuration Notes
 
@@ -80,6 +81,7 @@ Local docs are available at `http://localhost:8000/docs`. Production currently e
 - `BACKEND_CORS_ORIGINS` exists in settings but is not currently wired into middleware.
 - Auth helpers verify HS256 tokens using `JANUA_JWT_SECRET`; RS256 JWKS verification is not implemented in this repo yet.
 - Docs are disabled when `ENV`, `ENVIRONMENT`, or `PYTHON_ENV` is production-like.
+- `backend/Dockerfile` pre-installs CPU-only torch in the same version range as `pyproject.toml`, copies dependency metadata before `app/`, and uses BuildKit cache mounts so app-only edits do not invalidate the heavy ML dependency layers.
 
 ## Tests
 

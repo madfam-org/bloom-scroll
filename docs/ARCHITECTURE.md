@@ -511,9 +511,10 @@ The root `docker-compose.yml` is a compatibility stack on host API port `5200`; 
 - Kustomize pins image digests in `infra/k8s/production/kustomization.yaml`
 
 Observed production gaps on 2026-05-28:
-- `/docs` and `/openapi.json` are exposed publicly until the staged `ENV=production` deployment rolls out.
-- Enclii CLI status from this checkout failed with `PROJECT_NOT_FOUND`.
-- `enclii.yaml` status probe checking for any `localhost:` substring is too broad because the production bundle includes localhost connection-help copy.
+- Enclii CLI observation requires explicit project context, for example `ENCLII_PROJECT=bloom-scroll enclii ps --env production`.
+- Enclii service health currently reports `unknown` even while logs and public smoke checks show healthy probe responses.
+- Production contains at least one `OPENALEX` card without a matching local ingestion module.
+- Janua RS256/JWKS verification is not implemented in this repo; current auth helper verifies HS256 with `JANUA_JWT_SECRET`.
 
 ---
 

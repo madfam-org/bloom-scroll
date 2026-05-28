@@ -641,9 +641,9 @@ class BloomScrollUser(HttpUser):
 Current production is Kubernetes/ArgoCD, not Docker Compose. Key manifests live in `infra/k8s/production`.
 
 Required hardening items:
-- Verify the staged `ENV=production` rollout hides `/docs`, `/redoc`, and `/openapi.json`.
+- Keep production `/docs`, `/redoc`, and `/openapi.json` hidden via the environment gate and smoke checks.
 - Keep `CORS_ALLOWED_ORIGINS` explicit.
-- Resolve the Enclii `PROJECT_NOT_FOUND` context gap from this checkout.
+- Improve Enclii service-health reporting; CLI use from this checkout requires `ENCLII_PROJECT=bloom-scroll`.
 - Keep `enclii.yaml` status probe scoped to the exact leaked default API base so localhost help text does not fail the production API-base assertion.
 
 **Environment variables**:

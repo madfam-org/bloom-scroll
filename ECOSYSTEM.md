@@ -211,10 +211,11 @@ Evidence-backed current state is maintained in `docs/CURRENT_STATE.md`.
 
 - `https://almanac.solar` returned HTTP 200.
 - `https://api.almanac.solar/health` returned HTTP 200 with database OK, 8 embeddings indexed, and 8 cards.
-- `https://api.almanac.solar/docs` and `/openapi.json` returned HTTP 200; production docs exposure remains a hardening gap until the staged production env deployment rolls out.
+- `scripts/prod-smoke.sh` passed against production after the `argocd-db36c34` rollout, including hidden `/docs` and `/openapi.json` checks on `api.almanac.solar`.
 - `https://almanac.solar/main.dart.js` contains the correct baked API base, `https://api.almanac.solar/api/v1`.
 - The same JS bundle also contains `localhost:8000` inside connection-help text, so the repo narrows the status assertion to the exact leaked default API base (`http://localhost:8000/api/v1`).
-- Enclii-first observation from this checkout failed with `PROJECT_NOT_FOUND`; record this as an Enclii project/context gap before falling back to raw cluster access.
+- Enclii-first production observation requires explicit project context from this checkout, for example `ENCLII_PROJECT=bloom-scroll enclii ps --env production`; service health still reports `unknown` even while logs and public smoke checks are healthy.
+- The shared Enclii build/publish workflow was patched in `madfam-org/enclii@0a72ed7` to authenticate to GHCR during digest-pin cosign verification for private packages.
 
 ### Full onboarding (only used when adding a brand-new service)
 
