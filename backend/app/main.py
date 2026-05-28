@@ -51,8 +51,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("🌸 Bloom Scroll shutting down...")
 
 
+def _is_production_env() -> bool:
+    """Return whether the current runtime should expose production behavior."""
+    return any(
+        os.getenv(name, "").strip().lower() in {"production", "prod"}
+        for name in ("ENV", "ENVIRONMENT", "PYTHON_ENV")
+    )
+
+
 # Audit 2026-04-23 H9: hide /docs + /openapi.json in production.
-_DOCS_ENABLED = os.getenv("ENV", "development") != "production"
+_DOCS_ENABLED = not _is_production_env()
 
 app = FastAPI(
     title="Bloom Scroll API",

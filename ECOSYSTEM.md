@@ -29,7 +29,7 @@ Bloom Scroll is a perspective-driven content aggregator optimized for serendipit
 
 | Service | Public domain | Container port |
 |---|---|---|
-| `bloom-scroll-web` | almanac.solar | 3000 |
+| `bloom-scroll-web` | almanac.solar | 8080 |
 | `bloom-scroll-api` | api.almanac.solar | 8000 |
 | `bloom-scroll-ingest` | (background ingest) | — |
 
@@ -161,7 +161,7 @@ ecosystem, swap the name.
 ```bash
 # Status + where the pods are running
 enclii ps --wide
-enclii ps bloom-scroll-web --env production
+enclii ps --env production
 
 # Logs (tail, filter, history)
 enclii logs bloom-scroll-web -f                          # live tail
@@ -205,6 +205,17 @@ enclii local up         # spin up dependent services (postgres, redis, …)
 enclii local logs
 enclii local down
 ```
+
+### Production observations — 2026-05-28
+
+Evidence-backed current state is maintained in `docs/CURRENT_STATE.md`.
+
+- `https://almanac.solar` returned HTTP 200.
+- `https://api.almanac.solar/health` returned HTTP 200 with database OK, 8 embeddings indexed, and 8 cards.
+- `https://api.almanac.solar/docs` and `/openapi.json` returned HTTP 200; production docs exposure remains a hardening gap until the staged production env deployment rolls out.
+- `https://almanac.solar/main.dart.js` contains the correct baked API base, `https://api.almanac.solar/api/v1`.
+- The same JS bundle also contains `localhost:8000` inside connection-help text, so the repo narrows the status assertion to the exact leaked default API base (`http://localhost:8000/api/v1`).
+- Enclii-first observation from this checkout failed with `PROJECT_NOT_FOUND`; record this as an Enclii project/context gap before falling back to raw cluster access.
 
 ### Full onboarding (only used when adding a brand-new service)
 

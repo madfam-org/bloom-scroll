@@ -1,5 +1,7 @@
 # Bloom Scroll: Design System ("Paper & Ink")
 
+**Last audited**: 2026-05-28. This compact token sheet matches the implementation in `frontend/lib/theme/design_tokens.dart`; the fuller guide is [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md).
+
 ## 1. Core Philosophy
 The UI should feel like a printed Sunday newspaper, not a software application.
 * **High Contrast:** Black ink on warm paper.

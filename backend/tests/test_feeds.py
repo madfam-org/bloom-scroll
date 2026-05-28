@@ -1,48 +1,59 @@
-"""
-Feed management tests for Bloom Scroll API.
-"""
+"""Feed endpoint tests for the current `/api/v1/feed` API."""
 
 import pytest
 from httpx import AsyncClient
 
 
 @pytest.mark.asyncio
-async def test_list_feeds_empty(client: AsyncClient):
-    """Test listing feeds when none exist."""
-    response = await client.get("/api/feeds")
+async def test_feed_completion_when_daily_limit_reached(client: AsyncClient):
+    """The finite feed should return completion once read_count reaches 20."""
+    response = await client.get("/api/v1/feed", params={"read_count": 20})
+
     assert response.status_code == 200
-
     data = response.json()
-    assert isinstance(data, list) or "items" in data
+    assert data["cards"] == []
+    assert data["pagination"]["has_next_page"] is False
+    assert data["pagination"]["daily_limit"] == 20
+    assert data["completion"]["message"] == "The Garden is Watered."
 
 
 @pytest.mark.asyncio
-async def test_create_feed(client: AsyncClient, sample_feed_data: dict):
-    """Test creating a new feed."""
-    response = await client.post("/api/feeds", json=sample_feed_data)
+async def test_feed_clamps_limit_to_remaining_daily_cards(client: AsyncClient):
+    """The API should not return pagination metadata beyond the daily cap."""
+    response = await client.get(
+        "/api/v1/feed",
+        params={"read_count": 19, "limit": 20},
+    )
 
-    # Should succeed or require auth
-    assert response.status_code in [200, 201, 401, 403]
-
-
-@pytest.mark.asyncio
-async def test_get_daily_digest(client: AsyncClient):
-    """Test getting daily digest."""
-    response = await client.get("/api/digest/daily")
-
-    # Should return digest or empty
-    assert response.status_code in [200, 404]
+    assert response.status_code == 200
+    data = response.json()
+    assert data["pagination"]["limit"] == 1
+    assert data["pagination"]["daily_limit"] == 20
 
 
 @pytest.mark.asyncio
-async def test_feed_validation(client: AsyncClient):
-    """Test feed creation with invalid data."""
-    invalid_feed = {
-        "name": "",  # Empty name
-        "url": "not-a-valid-url",
-    }
+async def test_feed_rejects_negative_limit(client: AsyncClient):
+    """FastAPI validation should reject invalid limits."""
+    response = await client.get("/api/v1/feed", params={"limit": -1})
 
-    response = await client.post("/api/feeds", json=invalid_feed)
+    assert response.status_code == 422
 
-    # Should reject invalid data
-    assert response.status_code in [400, 422, 401]
+
+@pytest.mark.asyncio
+async def test_feed_rejects_invalid_user_context_uuid(client: AsyncClient):
+    """Invalid UUIDs should be rejected before feed generation."""
+    response = await client.get(
+        "/api/v1/feed",
+        params={"user_context": ["not-a-uuid"]},
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_perspective_endpoint_is_explicit_placeholder(client: AsyncClient):
+    """The current perspective endpoint is present but not implemented."""
+    response = await client.get("/api/v1/perspective/test-card")
+
+    assert response.status_code == 200
+    assert response.json() == {"message": "Perspective for card test-card - Coming soon"}

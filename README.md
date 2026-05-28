@@ -61,7 +61,7 @@ Bloom Scroll is built on four anti-doomscroll principles:
 - **Redis** - Caching and session management
 
 ### Frontend
-- **Flutter/Dart** - Cross-platform mobile UI
+- **Flutter/Dart** - Cross-platform web/mobile UI
 - **Riverpod** - State management
 - **fl_chart** - Interactive data visualization
 - **Masonry Grid** - Staggered layout (Pinterest-style)
@@ -69,6 +69,18 @@ Bloom Scroll is built on four anti-doomscroll principles:
 ### Infrastructure
 - **Docker Compose** - Local development
 - **Alembic** - Database migrations
+- **Kubernetes + ArgoCD** - Production deployment for `almanac.solar`
+
+## ✅ Current State
+
+**Last audited**: 2026-05-28. See [docs/CURRENT_STATE.md](docs/CURRENT_STATE.md) for the evidence log from repository inspection and public production probes.
+
+Key observed facts:
+- Public web: `https://almanac.solar` returns HTTP 200.
+- Public API health: `https://api.almanac.solar/health` returns healthy with database OK, 8 indexed embeddings, and 8 cards.
+- The production Flutter bundle is baked to `https://api.almanac.solar/api/v1`.
+- `/docs` and `/openapi.json` are currently exposed in production; this branch stages `ENV=production` in the API deployment to close that gap on rollout.
+- Root `docker-compose.yml` is a lightweight compatibility stack on API port `5200`; `infrastructure/` remains the preferred local development path.
 
 ---
 
@@ -79,35 +91,43 @@ Bloom Scroll is built on four anti-doomscroll principles:
 - (Optional) Python 3.11+ for backend development
 - (Optional) Flutter SDK 3.0+ for frontend development
 
-### 1. Spin up the garden 🌱
+### 1. Start local infrastructure 🌱
 ```bash
-docker-compose up -d --build
+cd infrastructure
+docker-compose -f docker-compose.dev.yml up -d
 ```
 
 This starts:
 - PostgreSQL with pgvector extension
 - Redis cache
-- FastAPI backend (port 8000)
 
-### 2. Run the migration 🗄️
+### 2. Run backend migrations 🗄️
 ```bash
-docker-compose exec api alembic upgrade head
+cd ../backend
+poetry install
+poetry run alembic upgrade head
 ```
 
 Creates the `bloom_cards` table with vector columns.
 
-### 3. Seed the garden 🌾
+### 3. Start the API
 ```bash
-docker-compose exec api python scripts/seed_data.py
+poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Ingests sample OWID datasets (CO2, life expectancy, child mortality).
+The local API runs at `http://localhost:8000`.
 
-### 4. Run the Flutter app 📱
+### 4. Seed content 🌾
+```bash
+curl -X POST "http://localhost:8000/api/v1/ingest/owid/all"
+curl -X POST "http://localhost:8000/api/v1/ingest/aesthetics/all?limit_per_channel=2"
+```
+
+### 5. Run the Flutter app 📱
 ```bash
 cd frontend
 flutter pub get
-flutter run
+flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000
 ```
 
 **API Endpoints**:
@@ -115,7 +135,7 @@ flutter run
 - Android Emulator: `http://10.0.2.2:8000`
 - Physical Device: `http://<your-ip>:8000`
 
-**View API Docs**: http://localhost:8000/docs
+**View local API docs**: http://localhost:8000/docs
 
 ---
 
@@ -126,6 +146,7 @@ bloom-scroll/
 ├── 📖 docs/                          # Documentation & Architecture
 │   ├── brief.md                      # Product concept
 │   ├── prd.md                        # Product Requirements Document
+│   ├── CURRENT_STATE.md              # Evidence-backed current implementation and prod state
 │   ├── ARCHITECTURE.md               # Technical deep dive
 │   ├── DESIGN_SYSTEM.md              # "Paper & Ink" design tokens
 │   ├── ROADMAP.md                    # Story tracking (STORY-001 to STORY-007)
@@ -137,13 +158,12 @@ bloom-scroll/
 ├── 🐍 backend/                       # Python FastAPI
 │   ├── app/
 │   │   ├── models/                   # SQLAlchemy models (BloomCard)
-│   │   ├── ingestion/                # OWID, OpenAlex, CARI connectors
+│   │   ├── ingestion/                # Implemented OWID + Are.na connectors
 │   │   ├── curation/                 # Bloom algorithm (serendipity)
 │   │   ├── analysis/                 # NLP models (SBERT, BiasBERT)
 │   │   ├── api/                      # REST endpoints
 │   │   └── core/                     # Database, config
 │   ├── alembic/                      # Database migrations
-│   ├── scripts/                      # Seed data, utilities
 │   ├── tests/                        # Pytest tests
 │   ├── Dockerfile
 │   ├── pyproject.toml                # Poetry dependencies
@@ -162,13 +182,11 @@ bloom-scroll/
 │   ├── pubspec.yaml                  # Dependencies
 │   └── README.md
 │
-├── 🏗️ infrastructure/                # Docker & Config
-│   └── docker-compose.yml            # PostgreSQL, Redis, API services
+├── 🏗️ infrastructure/                # Local Docker Compose stacks
+│   ├── docker-compose.dev.yml        # Postgres + Redis for host-run backend
+│   └── docker-compose.yml            # Full local stack
 │
-├── 📜 STORY-001.md                   # Infrastructure & OWID ingestion
-├── 📜 STORY-002.md                   # Flutter scaffold & charting
-├── 📜 STORY-003.md                   # Aesthetics & masonry grid
-├── docker-compose.yml                # Main Docker Compose file
+├── docker-compose.yml                # Legacy root Compose file; see docs/CURRENT_STATE.md
 └── README.md                         # This file
 ```
 
@@ -264,8 +282,8 @@ flutter build ios --release  # iOS
 ## 🗺️ Current Status
 
 **Version**: 0.1.0
-**Phase**: Initial Development
-**Last Updated**: 2025-11-19
+**Phase**: Production alpha / stabilization
+**Last Updated**: 2026-05-28
 
 ### Completed Stories ✅
 - ✅ **STORY-001**: Infrastructure & OWID Ingestion
@@ -275,8 +293,9 @@ flutter build ios --release  # iOS
 - ✅ **STORY-006**: Perspective Overlay & Flip Animation
 - ✅ **STORY-007**: Finite Feed & Completion Widget
 
-### In Progress 🚧
-- 🚧 **STORY-005**: Poison Pill & Stability Tests
+### Needs Verification / Hardening 🚧
+- ✅ **STORY-005 backend repair**: Poison pill and feed tests now target current modules/endpoints.
+- 🚧 **Production docs exposure**: `/docs` and `/openapi.json` are public on `api.almanac.solar`; manifest remediation is staged.
 
 See [ROADMAP.md](docs/ROADMAP.md) for detailed tracking.
 

@@ -13,6 +13,8 @@
 **Priority**: P1
 **Stack**: Python (Are.na API), Flutter (Staggered Grid)
 
+> Current audit note (2026-05-28): This is a historical story record. Current files are `backend/app/ingestion/aesthetics.py` and `frontend/lib/widgets/aesthetic_card.dart`; the full-screen image viewer is implemented inside `aesthetic_card.dart`. See [../CURRENT_STATE.md](../CURRENT_STATE.md).
+
 ## Overview
 
 This story introduces aesthetic image ingestion from Are.na and upgrades the mobile feed to a masonry grid layout, enabling the "Robin Hood" effect where dense OWID charts coexist with visual aesthetic content.

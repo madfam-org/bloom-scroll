@@ -2,13 +2,15 @@
 
 **The Map** - A comprehensive guide to the technical flow and implementation
 
+**Last audited**: 2026-05-28. See [CURRENT_STATE.md](CURRENT_STATE.md) for evidence from repository inspection and `almanac.solar` production probes.
+
 ---
 
 ## System Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Flutter Mobile Client                     │
+│                    Flutter Web/Mobile Client                  │
 │     (Masonry Grid, Flip Animation, Completion Widget)       │
 └─────────────────┬────────────────────────────────────────────┘
                   │ REST API (JSON)
@@ -16,7 +18,7 @@
 │                    FastAPI Backend                            │
 │  ┌──────────────┬──────────────┬──────────────┬──────────┐  │
 │  │  Ingestion   │   Analysis   │  Curation    │   API    │  │
-│  │  (OWID,CARI) │  (SBERT,NLP) │ (Bloom Algo) │ Routes   │  │
+│  │ (OWID,Are.na)│  (SBERT,NLP) │ (Bloom Algo) │ Routes   │  │
 │  └──────────────┴──────────────┴──────────────┴──────────┘  │
 └─────────────────┬────────────────────────────────────────────┘
                   │
@@ -79,7 +81,7 @@ class BloomCard:
 - Store as JSON in `data_payload`
 - Generate embedding from title + indicator
 
-#### 🎨 Aesthetics (Are.na / CARI)
+#### 🎨 Aesthetics (Are.na)
 **Source**: Are.na API (channel blocks)
 **Payload**:
 ```json
@@ -95,10 +97,10 @@ class BloomCard:
 **Ingestion**:
 - Query Are.na public channels
 - Pre-calculate aspect ratio (prevent layout shifts)
-- Extract dominant color for UI theming
+- Dominant color extraction helper exists, but ingestion currently stores `#808080`
 - Cache images via CDN
 
-#### 🔬 Science (OpenAlex - Future)
+#### 🔬 Science (OpenAlex)
 **Source**: OpenAlex API (academic papers)
 **Payload**:
 ```json
@@ -110,6 +112,8 @@ class BloomCard:
   "topics": ["climate", "modeling"]
 }
 ```
+
+OpenAlex cards exist in production data as of 2026-05-28, but this repo does not yet contain an OpenAlex ingestion module. Treat OpenAlex ingestion as an external seed path or pending connector until code is added here.
 
 ### Data Flow
 
@@ -148,7 +152,7 @@ embedding = model.encode(text, convert_to_numpy=True)
 # → [0.123, -0.456, 0.789, ...] (384 dims)
 ```
 
-**Storage**: pgvector extension for fast cosine similarity queries
+**Storage**: pgvector column on `bloom_cards.embedding`. The current feed algorithm loads recent candidates and filters distance in Python; future optimization can push distance filtering deeper into pgvector queries.
 
 ```sql
 CREATE EXTENSION IF NOT EXISTS vector;
@@ -160,7 +164,7 @@ CREATE INDEX ON bloom_cards USING ivfflat (embedding vector_cosine_ops);
 **Model**: `bucketresearch/politicalBiasBERT`
 **Output**: Bias score from -1.0 (left) to +1.0 (right)
 
-**Current Implementation**: Mock scores for demonstration
+**Current Implementation**: `NLPProcessor.detect_bias()` is a placeholder returning `None`
 **Future**: Real-time inference for news/opinion content
 
 #### 3. Constructiveness Scoring
@@ -169,14 +173,14 @@ CREATE INDEX ON bloom_cards USING ivfflat (embedding vector_cosine_ops);
 - **50-80**: Mixed signal (factual + opinion)
 - **> 80**: High signal (well-sourced, balanced)
 
-**Current**: Hardcoded values
+**Current**: API output falls back to `50.0` when `constructiveness_score` is null
 **Future**: Fine-tuned transformer on constructive vs. inflammatory content
 
 #### 4. Blindspot Detection
-**Method**: User consumption clustering
+**Method**: User consumption clustering (target design)
 **Tags**: `["conservative-blindspot", "global-south-blindspot", ...]`
 
-**Algorithm**:
+**Target algorithm**:
 1. Build user's consumption vector (average of read card embeddings)
 2. Cluster all content using HDBSCAN
 3. Identify underrepresented clusters
@@ -196,24 +200,16 @@ class BloomAlgorithm:
         self.min_distance = min_distance  # Avoid echo chamber
         self.max_distance = max_distance  # Avoid irrelevance
 
-    def generate_feed(self, user_context_ids, limit=20):
-        # 1. Calculate user's average embedding
-        context_vector = self._calculate_user_context(user_context_ids)
+    async def generate_feed(self, session, user_context_ids=None, limit=20):
+        if not user_context_ids:
+            return await self._get_recent_cards(session, limit)
 
-        # 2. Query candidates with distance filter
-        candidates = db.query(BloomCard).filter(
-            cosine_distance(BloomCard.embedding, context_vector).between(
-                self.min_distance,
-                self.max_distance
-            )
-        ).all()
-
-        # 3. Diversify sources
-        balanced = self._balance_sources(candidates)
-
-        # 4. Return finite limit
-        return balanced[:limit]
+        context_vector = await self._calculate_user_context(session, user_context_ids)
+        candidates = await self._query_serendipity_zone(session, context_vector, limit)
+        return candidates
 ```
+
+Current implementation note: `_query_serendipity_zone()` fetches recent embedded cards, computes cosine distance in Python, sorts by proximity to the zone midpoint, and returns up to `limit`. It does not currently enforce source balancing.
 
 ### The "Serendipity Zone"
 
@@ -250,24 +246,12 @@ def calculate_reason_tag(self, card, context_vector):
 
 ### Source Balancing ("Robin Hood Layout")
 
-Ensure diverse content types in each feed:
+Source balancing is a product goal and UI rhythm principle. It is not currently implemented as a backend `_balance_sources()` method.
 
 ```python
-def _balance_sources(self, candidates):
-    # Distribute by source type
-    owid_cards = [c for c in candidates if c.source_type == "OWID"]
-    aesthetic_cards = [c for c in candidates if c.source_type == "AESTHETIC"]
-    science_cards = [c for c in candidates if c.source_type == "OPENALEX"]
-
-    # Interleave for visual rhythm
-    balanced = []
-    for i in range(max(len(owid_cards), len(aesthetic_cards))):
-        if i < len(aesthetic_cards):
-            balanced.append(aesthetic_cards[i])
-        if i < len(owid_cards):
-            balanced.append(owid_cards[i])
-
-    return balanced
+# Target future shape:
+# interleave OWID, AESTHETIC, OPENALEX, and future source types
+# after serendipity/quality filtering.
 ```
 
 ---
@@ -447,7 +431,7 @@ class BloomCard(Base):
     __tablename__ = "bloom_cards"
 
     id = Column(UUID, primary_key=True)
-    source_type = Column(String(50))  # OWID, OPENALEX, CARI
+    source_type = Column(String(50))  # OWID, AESTHETIC, OPENALEX, etc.
     title = Column(Text)
     summary = Column(Text, nullable=True)
     original_url = Column(Text)
@@ -489,15 +473,14 @@ class BloomCard {
 ## 🔐 Security & Privacy
 
 ### Data Handling
-- **No user tracking sold to third parties**
-- User embeddings stored anonymously (UUID-based)
-- GDPR-compliant data export API
-- Local storage for read state (not server-side)
+- **No user tracking sold to third parties** is a product principle.
+- Frontend read count and read card IDs are stored locally with `shared_preferences`.
+- Server-side interaction tracking exists at `/api/v1/interactions/*`, but user data export/delete APIs are not implemented in this repo.
+- Production auth/JWKS integration remains a hardening gap; local auth helpers currently verify HS256 secrets.
 
 ### Rate Limiting
-- OpenAlex: Polite pool (10 req/s with email header)
-- OWID: No limits (public data, cached locally)
-- Are.na: 1 req/s (respectful API usage)
+- Application-level API rate limiting is not implemented.
+- OWID and Are.na connectors should be treated respectfully; explicit throttling is still future work.
 
 ---
 
@@ -505,7 +488,11 @@ class BloomCard {
 
 ### Development (Docker Compose)
 ```bash
-docker-compose up -d --build
+cd infrastructure
+docker-compose -f docker-compose.dev.yml up -d
+
+cd ../backend
+poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 Services:
@@ -513,20 +500,29 @@ Services:
 - Redis 7 (cache)
 - FastAPI backend (port 8000)
 
-### Production (Future - Kubernetes)
-- Horizontal scaling of API pods
-- Read replicas for PostgreSQL
-- Redis cluster for high availability
-- CDN for static assets (images)
+The root `docker-compose.yml` is a compatibility stack on host API port `5200`; prefer `infrastructure/` Compose files for documented development.
+
+### Production (Kubernetes)
+- Public web: `https://almanac.solar`
+- Public API: `https://api.almanac.solar`
+- API deployment: `bloom-scroll-api`, 2 replicas, container port `8000`, probes on `/health`
+- Web deployment: `bloom-scroll-web`, 2 replicas, container port `8080`, probes on `/`
+- Services expose ClusterIP port `80` targeting API `8000` and web `8080`
+- Kustomize pins image digests in `infra/k8s/production/kustomization.yaml`
+
+Observed production gaps on 2026-05-28:
+- `/docs` and `/openapi.json` are exposed publicly until the staged `ENV=production` deployment rolls out.
+- Enclii CLI status from this checkout failed with `PROJECT_NOT_FOUND`.
+- `enclii.yaml` status probe checking for any `localhost:` substring is too broad because the production bundle includes localhost connection-help copy.
 
 ---
 
 ## 📈 Performance Considerations
 
 ### Backend Optimizations
-- **pgvector indexing**: IVFFlat index for fast vector similarity
+- **pgvector indexing**: HNSW index migration exists for vector similarity
 - **JSONB indexing**: GIN indexes on frequently queried payload fields
-- **Redis caching**: Hot feeds cached for 5 minutes
+- **Redis caching**: configured, but hot-feed caching is not implemented
 - **Async I/O**: FastAPI + asyncio for concurrent requests
 
 ### Frontend Optimizations
@@ -540,19 +536,16 @@ Services:
 ## 🧪 Testing Strategy
 
 ### Backend
-- **Unit tests**: pytest for individual functions
-- **Integration tests**: Testcontainers for DB interactions
-- **API tests**: Endpoint validation with test client
-- **Load tests**: Locust for stress testing
+- **Unit/API tests**: pytest files exist under `backend/tests`
+- **Backend test signal**: `poetry run pytest` passes health, feed, and poison-pill tests
+- **Load tests**: not present in the repo
 
 ### Frontend
-- **Unit tests**: Widget testing for components
-- **Integration tests**: Feed flow end-to-end
-- **Golden tests**: Screenshot comparison for UI
-- **Performance tests**: Flutter DevTools profiling
+- **Tests**: no committed `frontend/test/` directory as of the audit
+- **Planned**: widget tests, integration tests, golden tests, and Flutter DevTools performance profiling
 
 ---
 
-**Version**: 2.0
-**Last Updated**: 2025-11-19
+**Version**: 2.1
+**Last Updated**: 2026-05-28
 **Maintainer**: Engineering Team

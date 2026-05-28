@@ -1,5 +1,7 @@
 # Product Requirements Document (PRD): The Bloom Scroll
-**Version:** 1.0 | **Status:** Draft | **Classification:** Internal
+**Version:** 1.1 | **Status:** Product intent + implementation notes | **Classification:** Internal
+
+**Current-state reference:** See [CURRENT_STATE.md](CURRENT_STATE.md), last audited 2026-05-28, for observed repository and `almanac.solar` production behavior. Items below describe the product target; not every integration is implemented in this repo.
 
 ## 1. Executive Summary
 The **Bloom Scroll** is a mobile-first content aggregator designed to counter "doom scrolling"—the compulsive consumption of negative news—by engineering a feed rooted in **epistemic progress**, **aesthetic novelty**, and **constructive perspective**.
@@ -49,6 +51,14 @@ Unlike collaborative filtering (which creates echo chambers), this engine uses a
 
 *   **Serendipity Score ($S$):** Calculated as $S = Relevance \times (1 - Similarity)$. The system purposely selects items that are semantically distant from the user's last 5 reads but high in global quality.[4]
 *   **The "Robin Hood" Layout:** A layout algorithm (inspired by Flipboard) that balances "Rich" content (high-res art from CARI) with "Poor" content (text-heavy abstracts) to maintain visual rhythm and prevent fatigue.[22]
+
+### 3.4. Implementation Notes as of 2026-05-28
+
+- Implemented local ingestion modules: OWID and Are.na aesthetics.
+- Production data includes at least one OpenAlex card, but this repo does not yet contain an OpenAlex ingestion connector.
+- Bias classification is currently a placeholder in `backend/app/analysis/processor.py`.
+- The finite feed endpoint is implemented at `GET /api/v1/feed` with a 20-card daily limit.
+- Frontend state management is Riverpod, not BLoC.
 
 ---
 
@@ -103,3 +113,10 @@ When viewing a news item, users can swipe left to reveal the **Perspective Dashb
 *   Trope identification (TVTropes integration).
 *   "Mini-Bloom" micro-sessions.
 *   Public launch.
+
+## 7. Current Hardening Priorities
+
+- Hide production `/docs` and `/openapi.json` by aligning the API deployment environment with the code gate.
+- Keep STORY-005 backend tests passing and add frontend tests.
+- Resolve Enclii CLI `PROJECT_NOT_FOUND` from this repo context.
+- Replace broad `localhost:` status assertions with a precise check for the active API base URL.

@@ -2,6 +2,7 @@
 
 import logging
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -49,6 +50,83 @@ class OWIDConnector:
         """Initialize the connector."""
         self.timeout = timeout
 
+    def parse_csv(
+        self,
+        csv_path: str | Path,
+        dataset_key: str = "co2_emissions",
+        entity: str = "World",
+        years_back: int | None = None,
+    ) -> dict[str, Any] | None:
+        """
+        Parse a local OWID-style CSV fixture into a data payload.
+
+        Malformed rows are dropped rather than raising. This keeps ingestion
+        resilient to poison-pill rows while preserving valid data points.
+        """
+        try:
+            df = pd.read_csv(csv_path)
+        except Exception as e:
+            logger.error(f"Error reading OWID CSV {csv_path}: {e}")
+            return None
+
+        return self._build_payload_from_dataframe(df, dataset_key, entity, years_back)
+
+    def _build_payload_from_dataframe(
+        self,
+        df: pd.DataFrame,
+        dataset_key: str,
+        entity: str,
+        years_back: int | None,
+    ) -> dict[str, Any] | None:
+        """Normalize an OWID dataframe into a chart payload."""
+        if dataset_key not in self.DATASETS:
+            logger.error(f"Unknown dataset key: {dataset_key}")
+            return None
+
+        if "Year" not in df.columns:
+            logger.warning("OWID data missing Year column")
+            return None
+
+        dataset_info = self.DATASETS[dataset_key]
+        df_filtered = df.copy()
+
+        if "Entity" in df_filtered.columns:
+            df_filtered = df_filtered[df_filtered["Entity"] == entity].copy()
+
+        if df_filtered.empty:
+            logger.warning(f"No data found for entity: {entity}")
+            return None
+
+        value_column = df_filtered.columns[-1]
+        if value_column == "Entity" and len(df_filtered.columns) >= 2:
+            value_column = df_filtered.columns[-2]
+
+        df_filtered["Year"] = pd.to_numeric(df_filtered["Year"], errors="coerce")
+        df_filtered[value_column] = pd.to_numeric(df_filtered[value_column], errors="coerce")
+        df_filtered = df_filtered.dropna(subset=["Year", value_column])
+
+        if years_back is not None:
+            current_year = datetime.now().year
+            start_year = current_year - years_back
+            df_filtered = df_filtered[df_filtered["Year"] >= start_year]
+
+        df_filtered = df_filtered.sort_values("Year")
+
+        if df_filtered.empty:
+            logger.warning(f"No valid numeric data found for entity: {entity}")
+            return None
+
+        payload = OWIDDataPayload(
+            chart_type="line",
+            years=[int(year) for year in df_filtered["Year"].tolist()],
+            values=[float(value) for value in df_filtered[value_column].tolist()],
+            unit=dataset_info["unit"],
+            indicator=dataset_info["indicator"],
+            entity=entity,
+        )
+
+        return payload.model_dump()
+
     async def fetch_dataset(
         self,
         dataset_key: str,
@@ -85,44 +163,21 @@ class OWIDConnector:
 
             df = pd.read_csv(StringIO(response.text))
 
-            # Filter for specific entity
-            if "Entity" in df.columns:
-                df_filtered = df[df["Entity"] == entity].copy()
-            else:
-                df_filtered = df.copy()
-
-            if df_filtered.empty:
-                logger.warning(f"No data found for entity: {entity}")
+            data_payload = self._build_payload_from_dataframe(
+                df,
+                dataset_key,
+                entity,
+                years_back,
+            )
+            if not data_payload:
                 return None
 
-            # Get recent years
-            if "Year" in df_filtered.columns:
-                current_year = datetime.now().year
-                start_year = current_year - years_back
-                df_filtered = df_filtered[df_filtered["Year"] >= start_year]
-                df_filtered = df_filtered.sort_values("Year")
-
-            # Extract data
-            years = df_filtered["Year"].tolist() if "Year" in df_filtered.columns else []
-            value_column = df_filtered.columns[-1]  # Usually the last column is the data
-            values = df_filtered[value_column].tolist()
-
-            # Create data payload
-            payload = OWIDDataPayload(
-                chart_type="line",
-                years=years,
-                values=values,
-                unit=dataset_info["unit"],
-                indicator=dataset_info["indicator"],
-                entity=entity,
-            )
-
             logger.info(
-                f"Successfully fetched {len(years)} data points for {entity} - "
+                f"Successfully fetched {len(data_payload['years'])} data points for {entity} - "
                 f"{dataset_info['indicator']}"
             )
 
-            return payload.model_dump()
+            return data_payload
 
         except httpx.HTTPError as e:
             logger.error(f"HTTP error fetching OWID data: {e}")

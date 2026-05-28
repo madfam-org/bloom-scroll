@@ -4,6 +4,8 @@
 **Date**: 2025-11-19
 **Epic**: The Scroll
 
+> Current audit note (2026-05-28): This is a historical implementation record. Production currently verifies the completion response at `https://api.almanac.solar/api/v1/feed?read_count=20`; see [CURRENT_STATE.md](CURRENT_STATE.md).
+
 ## Overview
 
 STORY-007 implements the "Finite Feed" - a hard daily limit of 20 cards to prevent infinite scrolling. This transforms content consumption from endless doomscrolling into a finite, intentional experience where **"The End" is the product**.

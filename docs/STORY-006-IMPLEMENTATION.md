@@ -4,6 +4,8 @@
 **Date**: 2025-11-19
 **Epic**: The Lens
 
+> Current audit note (2026-05-28): This is a historical implementation record. The current production/repo evidence snapshot is [CURRENT_STATE.md](CURRENT_STATE.md).
+
 ## Overview
 
 STORY-006 implements the "Perspective Overlay" - a 3D flip animation that reveals perspective metadata on the "back" of bloom cards. This gamifies media literacy by presenting bias scores, constructiveness ratings, and serendipity context as "stat sheets" rather than warning labels.

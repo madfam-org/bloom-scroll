@@ -4,10 +4,11 @@ Pytest configuration and fixtures for Bloom Scroll backend tests.
 
 import asyncio
 from collections.abc import AsyncGenerator, Generator
+from typing import Any
 
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
@@ -45,10 +46,43 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
 async def client() -> AsyncGenerator[AsyncClient, None]:
     """Create test HTTP client."""
     # Import here to avoid circular imports
+    from app.core.database import get_db
     from app.main import app
 
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    class _FakeResult:
+        def __init__(self, scalar_value: Any = None):
+            self._scalar_value = scalar_value
+
+        def scalar(self) -> Any:
+            return self._scalar_value
+
+        def scalars(self) -> "_FakeResult":
+            return self
+
+        def all(self) -> list[Any]:
+            return []
+
+    class _FakeDBSession:
+        async def execute(self, statement: Any) -> _FakeResult:
+            query = str(statement)
+            if "SELECT 1" in query:
+                return _FakeResult(1)
+            if "embedding IS NOT NULL" in query:
+                return _FakeResult(0)
+            if "COUNT(*) FROM bloom_cards" in query:
+                return _FakeResult(0)
+            return _FakeResult(None)
+
+    async def override_get_db() -> AsyncGenerator[_FakeDBSession, None]:
+        yield _FakeDBSession()
+
+    app.dependency_overrides[get_db] = override_get_db
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
+
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture

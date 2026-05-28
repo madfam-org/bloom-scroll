@@ -12,6 +12,8 @@
 **Epic**: The Root System
 **Priority**: P0
 
+> Current audit note (2026-05-28): This is a historical story record. Use [../CURRENT_STATE.md](../CURRENT_STATE.md), the top-level README, and `infrastructure/README.md` for current setup commands and known drift. Production CORS is no longer wildcard, and local development should use `infrastructure/docker-compose.dev.yml` or `infrastructure/docker-compose.yml`.
+
 ## Overview
 
 This story establishes the foundational infrastructure for Bloom Scroll and implements the first data ingestion pipeline for Our World in Data (OWID).

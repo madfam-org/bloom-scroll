@@ -4,6 +4,8 @@
 **Date**: 2025-11-19
 **Epic**: Core Curation Engine
 
+> Current audit note (2026-05-28): This is a historical implementation record. For current endpoint paths, repaired test coverage, and production observations, see [CURRENT_STATE.md](CURRENT_STATE.md). Current modules are `backend/app/analysis/processor.py` and `backend/app/curation/bloom_algorithm.py`; there is no `backend/requirements.txt`.
+
 ## Overview
 
 STORY-004 implements the **Perspective Engine** - the core intelligence behind Bloom Scroll's anti-echo-chamber curation. This system uses NLP embeddings and serendipity scoring to ensure users encounter diverse perspectives while maintaining comprehensibility.

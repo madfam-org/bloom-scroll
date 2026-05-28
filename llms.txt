@@ -6,6 +6,7 @@ Compact LLM context index for this repository.
 
 - `AGENTS.md` — canonical agent operating instructions.
 - `README.md` — human/product overview when present.
+- `docs/CURRENT_STATE.md` — evidence-backed current implementation and production state.
 - `ECOSYSTEM.md` — MADFAM ecosystem and Enclii deployment context when present.
 - `llms-full.txt` — full context map and durable operating contract.
 

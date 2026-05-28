@@ -5,6 +5,8 @@
 **Priority**: P0
 **Stack**: Flutter (Dart), fl_chart
 
+> Current audit note (2026-05-28): This is a historical story record. The current frontend uses Riverpod `FeedController`, `CustomScrollView` + `SliverMasonryGrid`, and `fl_chart` 1.x; use [../CURRENT_STATE.md](../CURRENT_STATE.md) and `frontend/README.md` for current commands.
+
 ## Overview
 
 This story builds the mobile app shell that fetches data from the backend and renders OWID charts natively. It validates two critical UX pillars: **Upward Scrolling** and **Native Data Rendering**.

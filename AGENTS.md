@@ -372,11 +372,14 @@ flutter test --coverage
 
 *Bloom Scroll - The Slow Web | 20 Items. Then Stop.*
 
-## Known Issues — Audit 2026-04-23
+## Known Issues — Audits 2026-04-23 and 2026-05-28
 
 See `/Users/aldoruizluna/labspace/claudedocs/ECOSYSTEM_AUDIT_2026-04-23.md` for the full ecosystem audit.
+See `docs/CURRENT_STATE.md` for the 2026-05-28 repo/prod evidence snapshot.
 
 - ~~**🟠 H5: Wildcard CORS**~~ — Fixed 2026-04-23: `backend/app/main.py` reads `CORS_ALLOWED_ORIGINS` env with `almanac.solar` fallback; explicit method + header lists.
-- **🟠 H9: OpenAPI docs exposed unconditionally** — `backend/app/main.py:65`. Gate on env.
+- **🟠 H9: OpenAPI docs exposed in production** — Code gates docs on production env, but `https://api.almanac.solar/docs` and `/openapi.json` returned HTTP 200 on 2026-05-28. Manifest remediation stages `ENV=production`; verify after rollout.
+- ~~**🟠 Local docs/test drift**~~ — Fixed in current working tree: backend health, feed, and poison-pill tests now target current modules/endpoints.
+- **🟡 Root Compose** — Root `docker-compose.yml` is a compatibility stack; use `infrastructure/` Compose files for primary local development.
 
 <!-- END LEGACY_CLAUDE_IMPORT -->

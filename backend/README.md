@@ -1,185 +1,96 @@
 # Bloom Scroll Backend
 
-FastAPI-based backend service for the Bloom Scroll content aggregator.
+FastAPI backend for Bloom Scroll / Almanac. Last audited against code and production on 2026-05-28; see [../docs/CURRENT_STATE.md](../docs/CURRENT_STATE.md).
 
-## Tech Stack
+## Current Stack
 
-- **Python**: 3.11+
-- **Framework**: FastAPI (async)
-- **Database**: PostgreSQL + pgvector/Milvus
-- **Cache/Queue**: Redis + Celery
-- **ML**: Sentence-BERT, PoliticalBiasBERT
+- Python 3.11+
+- FastAPI + Uvicorn
+- SQLAlchemy async sessions with `asyncpg`
+- PostgreSQL + pgvector for card storage and embeddings
+- Redis and Celery are configured; the current Celery ingestion task is scaffolded and returns `not_implemented`
+- Sentence-BERT (`sentence-transformers/all-MiniLM-L6-v2`) for 384-dimensional embeddings
+- Bias detection is a placeholder in `app/analysis/processor.py`
+
+Milvus appears in dependencies and full local Compose, but current application code stores/query embeddings through PostgreSQL + pgvector.
 
 ## Project Structure
 
-```
+```text
 backend/
 ├── app/
-│   ├── ingestion/     # Content scrapers and API clients
-│   ├── analysis/      # NLP models for bias detection & clustering
-│   ├── curation/      # Feed generation algorithm
-│   ├── api/           # FastAPI endpoints
+│   ├── analysis/      # NLPProcessor for embeddings and placeholder bias scoring
+│   ├── api/           # Feed, ingestion, and interaction endpoints
+│   ├── core/          # Config, auth helpers, DB, error handlers
+│   ├── curation/      # BloomAlgorithm serendipity logic
+│   ├── ingestion/     # OWID and Are.na connectors
 │   ├── models/        # SQLAlchemy models
 │   ├── schemas/       # Pydantic schemas
-│   ├── core/          # Config, security, dependencies
-│   └── main.py        # Application entry point
-├── tests/             # Test suite
+│   ├── main.py        # FastAPI app
+│   └── worker.py      # Celery scaffold
 ├── alembic/           # Database migrations
+├── tests/             # Pytest tests
 ├── Dockerfile
-├── pyproject.toml     # Poetry dependencies
-└── README.md
+├── pyproject.toml
+└── run_dev.sh
 ```
 
-## Quick Start
+## Local Development
 
-### Prerequisites
-- Python 3.11+
-- Poetry
-- Docker & Docker Compose
-- PostgreSQL 15+
-- Redis 7+
-
-### Installation
+Start Postgres and Redis:
 
 ```bash
-# Install dependencies
+cd ../infrastructure
+docker-compose -f docker-compose.dev.yml up -d
+```
+
+Install dependencies, migrate, and run:
+
+```bash
+cd ../backend
 poetry install
-
-# Set up environment variables
-cp .env.example .env
-# Edit .env with your configuration
-
-# Run database migrations
 poetry run alembic upgrade head
-
-# Start development server
 poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### Running with Docker
+`./run_dev.sh` performs the same dependency/migration/server flow and expects local Postgres on `localhost:5432`.
 
-```bash
-# Build image
-docker build -t bloom-scroll-backend .
+## API Surface
 
-# Run container (requires docker-compose services)
-cd ../infrastructure
-docker-compose up -d
-```
+The API router is mounted at `/api/v1`.
 
-## Development
+- `GET /health`
+- `GET /api/v1/feed`
+- `GET /api/v1/perspective/{card_id}` (placeholder response)
+- `POST /api/v1/ingest/owid`
+- `POST /api/v1/ingest/owid/all`
+- `GET /api/v1/ingest/datasets`
+- `POST /api/v1/ingest/aesthetics`
+- `POST /api/v1/ingest/aesthetics/all`
+- `GET /api/v1/ingest/aesthetics/channels`
+- `POST /api/v1/interactions/track`
+- `GET /api/v1/interactions/recent/{user_id}`
 
-### Running Tests
+Local docs are available at `http://localhost:8000/docs`. Production currently exposes `/docs` too; that is tracked as a hardening gap in `CURRENT_STATE.md`.
+
+## Configuration Notes
+
+- `DATABASE_URL` is normalized to `postgresql+asyncpg://` in `app/core/database.py`.
+- Runtime CORS middleware reads `CORS_ALLOWED_ORIGINS` in `app/main.py`.
+- `BACKEND_CORS_ORIGINS` exists in settings but is not currently wired into middleware.
+- Auth helpers verify HS256 tokens using `JANUA_JWT_SECRET`; RS256 JWKS verification is not implemented in this repo yet.
+- Docs are disabled when `ENV`, `ENVIRONMENT`, or `PYTHON_ENV` is production-like.
+
+## Tests
+
 ```bash
 poetry run pytest
-poetry run pytest --cov=app  # with coverage
 ```
 
-### Code Quality
-```bash
-poetry run black .           # Format code
-poetry run ruff check .      # Lint code
-poetry run mypy app/         # Type checking
-```
+Current backend tests cover health, finite-feed behavior, API validation, and poison-pill ingestion paths.
 
-### Database Migrations
-```bash
-# Create new migration
-poetry run alembic revision --autogenerate -m "Description"
-
-# Apply migrations
-poetry run alembic upgrade head
-
-# Rollback
-poetry run alembic downgrade -1
-```
-
-## API Documentation
-
-Once running, visit:
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
-
-## Environment Variables
-
-Required variables in `.env`:
+Focused test command:
 
 ```bash
-# Database
-DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/bloom_scroll
-DATABASE_POOL_SIZE=20
-
-# Redis
-REDIS_URL=redis://localhost:6379/0
-
-# Milvus
-MILVUS_HOST=localhost
-MILVUS_PORT=19530
-
-# API Keys (optional, for external services)
-OPENALEX_EMAIL=your-email@example.com
-
-# Security
-SECRET_KEY=your-secret-key-here
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
+poetry run pytest tests/test_health.py tests/test_feeds.py tests/test_ingestion_gauntlet.py
 ```
-
-## Services
-
-### Ingestion Service
-Fetches content from multiple sources:
-- Our World in Data (OWID)
-- OpenAlex (Science papers)
-- Aesthetics Wiki / CARI Institute
-- Neocities (Indie Web)
-- RSS-Bridge (General news)
-
-### Analysis Service
-Processes content through:
-- Bias classification (PoliticalBiasBERT)
-- Semantic embeddings (Sentence-BERT)
-- Clustering for blindspot detection (HDBSCAN)
-- Factfulness cross-referencing
-
-### Curation Service
-Generates personalized feeds using:
-- Metropolis-Hastings sampling
-- Serendipity scoring
-- "Robin Hood" layout balancing
-
-### API Service
-Exposes REST endpoints for:
-- Feed generation
-- Card interactions
-- Perspective overlays
-- User management
-
-## Background Tasks
-
-Celery workers handle:
-- Scheduled scraping jobs
-- Batch embedding generation
-- Feed pre-computation
-- Data cleanup
-
-Start worker:
-```bash
-poetry run celery -A app.worker worker --loglevel=info
-```
-
-Start beat scheduler:
-```bash
-poetry run celery -A app.worker beat --loglevel=info
-```
-
-## Contributing
-
-1. Create feature branch
-2. Write tests
-3. Ensure code quality checks pass
-4. Submit PR
-
-## License
-
-Proprietary - Bloom Scroll Team

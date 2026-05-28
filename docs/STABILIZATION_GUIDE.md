@@ -2,6 +2,15 @@
 
 **Expert recommendations for production-ready stability**
 
+**Last audited**: 2026-05-28. See [CURRENT_STATE.md](CURRENT_STATE.md) for current repo/prod evidence.
+
+Current stabilization reality:
+- Production is live at `almanac.solar` and `api.almanac.solar`.
+- API health is green, but `/docs` and `/openapi.json` are public in production until the staged `ENV=production` deployment rolls out.
+- Error handlers and Flutter `ErrorBoundary` are wired.
+- Poison-pill tests were repaired to current module names and pass locally.
+- Root `docker-compose.yml` is a compatibility stack; use `infrastructure/` Compose files for primary local development.
+
 ---
 
 ## Overview
@@ -54,7 +63,7 @@ class FeedRequest(BaseModel):
 
 **Data Sanitization**:
 ```python
-# backend/app/ingestion/owid_connector.py
+# backend/app/ingestion/owid.py
 def parse_csv(self, csv_path: Path) -> List[BloomCard]:
     cards = []
     with open(csv_path, 'r') as f:
@@ -140,7 +149,7 @@ async def get_feed(...):
     ...
 ```
 
-### 1.5 Poison Pill Tests ✅ IMPLEMENTED
+### 1.5 Poison Pill Tests ✅ REPAIRED
 
 **Run gauntlet tests**:
 ```bash
@@ -156,6 +165,8 @@ Tests cover:
 - Empty text embeddings
 - Very long text (>512 tokens)
 - Invalid API parameters
+
+Audit note 2026-05-28: `backend/tests/test_ingestion_gauntlet.py` now targets `app.ingestion.owid`, `app.ingestion.aesthetics`, and `app.analysis.processor`.
 
 ---
 
@@ -627,6 +638,14 @@ class BloomScrollUser(HttpUser):
 
 ### 6.2 Production Environment
 
+Current production is Kubernetes/ArgoCD, not Docker Compose. Key manifests live in `infra/k8s/production`.
+
+Required hardening items:
+- Verify the staged `ENV=production` rollout hides `/docs`, `/redoc`, and `/openapi.json`.
+- Keep `CORS_ALLOWED_ORIGINS` explicit.
+- Resolve the Enclii `PROJECT_NOT_FOUND` context gap from this checkout.
+- Keep `enclii.yaml` status probe scoped to the exact leaked default API base so localhost help text does not fail the production API-base assertion.
+
 **Environment variables**:
 ```bash
 # backend/.env.production
@@ -637,7 +656,7 @@ LOG_LEVEL=INFO
 DEBUG=false
 ```
 
-**Docker Compose (production)**:
+**Docker Compose production pattern (historical/local reference only)**:
 ```yaml
 services:
   api:
@@ -676,14 +695,14 @@ services:
 ### Priority 1 (Critical - Do Now)
 1. ✅ **Add error handlers to FastAPI** (`error_handlers.py` created)
 2. ✅ **Add ErrorBoundary to Flutter** (`error_boundary.dart` created)
-3. ✅ **Create poison pill tests** (`test_ingestion_gauntlet.py` created)
-4. **Run poison pill tests**: `pytest tests/test_ingestion_gauntlet.py`
+3. ✅ **Repair poison pill tests**
+4. 🛠️ **Hide production API docs** by rolling out the staged `ENV=production`
 5. **Add validation to all API endpoints** (Pydantic models)
 
 ### Priority 2 (High - This Week)
 6. **Implement retry logic** in API service (exponential backoff)
 7. **Add database connection pooling** (already in schema, verify config)
-8. **Add health check endpoint** (`/health`)
+8. ✅ **Add health check endpoint** (`/health`)
 9. **Profile Flutter performance** (DevTools)
 10. **Add null checks to all `fromJson` methods**
 
@@ -704,7 +723,7 @@ services:
 | **Memory leak (Flutter)** | App crashes after extended use | Profile with DevTools, dispose controllers |
 | **Null pointer (Dart)** | Red screen, "null check operator" | Add `?` operators, default values |
 | **Large image OOM** | App crashes loading images | Resize images, limit cache size |
-| **Slow vector search** | Feed takes >2s to load | Add IVFFlat index, reduce candidate pool |
+| **Slow vector search** | Feed takes >2s to load | Use existing HNSW index from migration, reduce candidate pool, or push distance filtering into pgvector query |
 | **API rate limits** | 429 errors | Implement backoff, cache responses |
 | **Invalid JSON** | Parse errors | Validate schemas, add error cards |
 
@@ -726,4 +745,4 @@ services:
 - Load testing
 - Caching layer
 
-Your app is already 86% complete (6/7 stories). These stabilization measures will get you to production-ready status. 🚀
+The app is live in production alpha, but stabilization is not complete. Verify the production docs rollout first; then expand frontend coverage, monitoring, and load testing.

@@ -1,9 +1,9 @@
 """NLP processing for embeddings and bias detection."""
 
 import logging
+from typing import Any
 
 import numpy as np
-from sentence_transformers import SentenceTransformer
 
 logger = logging.getLogger(__name__)
 
@@ -17,13 +17,15 @@ class NLPProcessor:
 
     def __init__(self):
         """Initialize the processor with models."""
-        self._embedding_model = None
-        self._bias_model = None
+        self._embedding_model: Any | None = None
+        self._bias_model: Any | None = None
 
-    def _load_embedding_model(self) -> SentenceTransformer:
+    def _load_embedding_model(self) -> Any:
         """Lazy load the embedding model."""
         if self._embedding_model is None:
             logger.info("Loading sentence-transformers model...")
+            from sentence_transformers import SentenceTransformer
+
             self._embedding_model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
             logger.info("Embedding model loaded successfully")
         return self._embedding_model
