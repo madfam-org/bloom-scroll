@@ -1,0 +1,5 @@
+# Optional local ML runtime for embedding development outside Linux images.
+# The Docker image uses requirements-ml-linux-cpu.txt instead.
+torch==2.2.2
+sentence-transformers==5.5.1
+transformers==4.57.6

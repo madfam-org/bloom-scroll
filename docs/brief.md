@@ -1,5 +1,7 @@
 # Bloom Scroll: Product Brief
 
+**Status**: Product intent. The current implementation/prod state is tracked in [CURRENT_STATE.md](CURRENT_STATE.md), last audited 2026-05-28.
+
 ## Vision
 Counter "doom scrolling" by creating a mobile-first content aggregator that optimizes for **enrichment** and **serendipity** instead of engagement and outrage.
 
@@ -50,5 +52,5 @@ Information-conscious individuals suffering from news fatigue who want:
 
 ---
 
-**Status**: Initial Concept
-**Next Step**: Technical Architecture Design
+**Status**: Production alpha with narrowed stability gaps
+**Next Step**: Keep production smoke checks and CI green after digest-pin rollouts, then expand end-to-end coverage and observability.

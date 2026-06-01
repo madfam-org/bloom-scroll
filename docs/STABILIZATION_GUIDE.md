@@ -2,6 +2,17 @@
 
 **Expert recommendations for production-ready stability**
 
+**Last audited**: 2026-05-28. See [CURRENT_STATE.md](CURRENT_STATE.md) for current repo/prod evidence.
+
+Current stabilization reality:
+- Production is live at `almanac.solar` and `api.almanac.solar`.
+- API health is green, and `/docs`, `/redoc`, and `/openapi.json` are hidden in production by the environment gate and smoke checks.
+- Error handlers and Flutter `ErrorBoundary` are wired.
+- Poison-pill tests were repaired to current module names and pass locally.
+- Backend dependency resolution is locked; Linux production images install pinned CPU-only ML wheels before Poetry, and a pytest guard prevents Poetry from reintroducing torch/CUDA packages.
+- Final 2026-05-28 production verification found the Argo app `Healthy` and `Synced` at `a84a3de`, with API and web both healthy at `2/2` replicas.
+- Root `docker-compose.yml` is a compatibility stack; use `infrastructure/` Compose files for primary local development.
+
 ---
 
 ## Overview
@@ -54,7 +65,7 @@ class FeedRequest(BaseModel):
 
 **Data Sanitization**:
 ```python
-# backend/app/ingestion/owid_connector.py
+# backend/app/ingestion/owid.py
 def parse_csv(self, csv_path: Path) -> List[BloomCard]:
     cards = []
     with open(csv_path, 'r') as f:
@@ -140,7 +151,7 @@ async def get_feed(...):
     ...
 ```
 
-### 1.5 Poison Pill Tests ✅ IMPLEMENTED
+### 1.5 Poison Pill Tests ✅ REPAIRED
 
 **Run gauntlet tests**:
 ```bash
@@ -156,6 +167,8 @@ Tests cover:
 - Empty text embeddings
 - Very long text (>512 tokens)
 - Invalid API parameters
+
+Audit note 2026-05-28: `backend/tests/test_ingestion_gauntlet.py` now targets `app.ingestion.owid`, `app.ingestion.aesthetics`, and `app.analysis.processor`.
 
 ---
 
@@ -627,6 +640,14 @@ class BloomScrollUser(HttpUser):
 
 ### 6.2 Production Environment
 
+Current production is Kubernetes/ArgoCD, not Docker Compose. Key manifests live in `infra/k8s/production`.
+
+Required hardening items:
+- Keep production `/docs`, `/redoc`, and `/openapi.json` hidden via the environment gate and smoke checks.
+- Keep `CORS_ALLOWED_ORIGINS` explicit.
+- Keep the released Enclii CLI `v1.0.0-alpha.1` or newer in operator workstations; CLI use from this checkout still requires `ENCLII_PROJECT=bloom-scroll`.
+- Keep `enclii.yaml` status probe scoped to the exact leaked default API base so localhost help text does not fail the production API-base assertion.
+
 **Environment variables**:
 ```bash
 # backend/.env.production
@@ -637,7 +658,7 @@ LOG_LEVEL=INFO
 DEBUG=false
 ```
 
-**Docker Compose (production)**:
+**Docker Compose production pattern (historical/local reference only)**:
 ```yaml
 services:
   api:
@@ -676,23 +697,24 @@ services:
 ### Priority 1 (Critical - Do Now)
 1. ✅ **Add error handlers to FastAPI** (`error_handlers.py` created)
 2. ✅ **Add ErrorBoundary to Flutter** (`error_boundary.dart` created)
-3. ✅ **Create poison pill tests** (`test_ingestion_gauntlet.py` created)
-4. **Run poison pill tests**: `pytest tests/test_ingestion_gauntlet.py`
-5. **Add validation to all API endpoints** (Pydantic models)
+3. ✅ **Repair poison pill tests**
+4. ✅ **Hide production API docs** with `ENV=production` and smoke coverage
+5. ✅ **Commit backend lockfile** with Linux CPU-only ML wheel coverage
+6. 🔜 **Add frontend E2E/stress coverage** for finite-feed completion, pagination, API-base behavior, missing metadata, image failures, and error-boundary paths
 
 ### Priority 2 (High - This Week)
-6. **Implement retry logic** in API service (exponential backoff)
-7. **Add database connection pooling** (already in schema, verify config)
-8. **Add health check endpoint** (`/health`)
-9. **Profile Flutter performance** (DevTools)
-10. **Add null checks to all `fromJson` methods**
+7. **Add production observability** with error telemetry, uptime checks, dashboards, feed/ingestion alerts, and browser error reporting
+8. **Implement retry logic** in API service (exponential backoff)
+9. ✅ **Add health check endpoint** (`/health`)
+10. **Profile Flutter performance** (DevTools)
+11. **Add null checks and malformed payload fixtures for all `fromJson` methods**
 
 ### Priority 3 (Medium - This Month)
-11. **Add Redis caching** for frequent queries
-12. **Implement rate limiting** (slowapi)
-13. **Add integration tests** (end-to-end feed flow)
-14. **Set up Sentry** for production error tracking
-15. **Load test with Locust** (simulate 100+ concurrent users)
+12. **Add Redis caching** for frequent queries
+13. **Implement rate limiting** (slowapi)
+14. **Add integration tests** (end-to-end feed flow)
+15. **Load test with Locust or k6** for feed, health, and ingestion paths
+16. **Complete Celery/background ingestion implementation or remove unused scaffold paths**
 
 ---
 
@@ -704,7 +726,7 @@ services:
 | **Memory leak (Flutter)** | App crashes after extended use | Profile with DevTools, dispose controllers |
 | **Null pointer (Dart)** | Red screen, "null check operator" | Add `?` operators, default values |
 | **Large image OOM** | App crashes loading images | Resize images, limit cache size |
-| **Slow vector search** | Feed takes >2s to load | Add IVFFlat index, reduce candidate pool |
+| **Slow vector search** | Feed takes >2s to load | Use existing HNSW index from migration, reduce candidate pool, or push distance filtering into pgvector query |
 | **API rate limits** | 429 errors | Implement backoff, cache responses |
 | **Invalid JSON** | Parse errors | Validate schemas, add error cards |
 
@@ -712,18 +734,8 @@ services:
 
 ## Summary
 
-**To stabilize your app immediately:**
-
-1. Run the poison pill tests I created
-2. Integrate the error handlers into your FastAPI app
-3. Wrap your Flutter app in the ErrorBoundary widget
-4. Add retry logic to network calls
-5. Profile performance with DevTools
-
-**Then progressively add:**
-- Health checks
-- Monitoring (Sentry)
-- Load testing
-- Caching layer
-
-Your app is already 86% complete (6/7 stories). These stabilization measures will get you to production-ready status. 🚀
+The app is live in production alpha, and the highest-risk deployment/dependency
+issues from the 2026-05-28 session are resolved. Stabilization is not complete:
+the next priorities are frontend end-to-end coverage, production observability,
+load/soak testing, retry/rate-limit/caching work, and replacing scaffolded
+background ingestion paths that still return `not_implemented`.

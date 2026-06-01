@@ -27,7 +27,7 @@ env/
 .venv
 
 # Poetry
-poetry.lock
+# Commit poetry.lock for reproducible backend installs and image builds.
 
 # Environment variables
 .env

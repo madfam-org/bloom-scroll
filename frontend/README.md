@@ -1,233 +1,108 @@
 # Bloom Scroll Frontend
 
-Flutter mobile application for the Bloom Scroll content aggregator.
+Flutter frontend for Bloom Scroll / Almanac. Last audited against code and production on 2026-05-28; see [../docs/CURRENT_STATE.md](../docs/CURRENT_STATE.md).
 
-## Features
+## Current Stack
 
-- **Masonry Grid Layout**: Dynamic tile layout adapting to content aspect ratios
-- **Skeleton Screens**: Reduced anxiety with gray-box placeholders
-- **Interactive Charts**: D3-like visualizations for OWID data
-- **Perspective Overlay**: Swipe to reveal bias analysis and data context
-- **Finite Feeds**: Definitive "End" state after ~20 cards
-- **Offline Support**: Local caching with Hive
+- Flutter / Dart
+- Riverpod (`StateNotifierProvider`) for feed state
+- Dio for HTTP
+- `fl_chart` for OWID charts
+- `flutter_staggered_grid_view` for the masonry feed
+- `cached_network_image` for aesthetic image cards
+- `shared_preferences` for daily read-count state
+- Google Fonts package for Libre Baskerville + Inter
 
-## Tech Stack
-
-- **Framework**: Flutter 3.0+
-- **Language**: Dart
-- **State Management**: BLoC pattern
-- **Networking**: Dio + Retrofit
-- **Local Storage**: Hive
-- **Charts**: fl_chart
+The current app does not use BLoC or the older Clean Architecture folder layout described in earlier drafts.
 
 ## Project Structure
 
-```
+```text
 frontend/
 ├── lib/
-│   ├── main.dart                 # Application entry point
-│   ├── app.dart                  # Root widget configuration
-│   ├── core/
-│   │   ├── config/               # App configuration
-│   │   ├── theme/                # Theme definitions
-│   │   └── utils/                # Utility functions
-│   ├── data/
-│   │   ├── models/               # Data models
-│   │   ├── repositories/         # Data layer
-│   │   └── datasources/          # API clients
-│   ├── domain/
-│   │   ├── entities/             # Business entities
-│   │   └── usecases/             # Business logic
-│   ├── presentation/
-│   │   ├── screens/              # Screen widgets
-│   │   ├── widgets/              # Reusable UI components
-│   │   └── blocs/                # BLoC state management
-│   └── services/
-│       ├── api/                  # API service layer
-│       ├── storage/              # Local storage
-│       └── navigation/           # Routing
-├── assets/
-│   ├── images/
-│   ├── icons/
-│   └── fonts/
-├── test/                         # Unit & widget tests
-├── integration_test/             # Integration tests
-├── pubspec.yaml
-└── README.md
+│   ├── main.dart
+│   ├── models/
+│   │   └── bloom_card.dart
+│   ├── providers/
+│   │   ├── api_provider.dart
+│   │   └── feed_controller.dart
+│   ├── screens/
+│   │   └── feed_screen.dart
+│   ├── services/
+│   │   ├── api_config.dart
+│   │   ├── api_service.dart
+│   │   └── storage_service.dart
+│   ├── theme/
+│   │   ├── bloom_theme.dart
+│   │   └── design_tokens.dart
+│   └── widgets/
+│       ├── aesthetic_card.dart
+│       ├── completion_widget.dart
+│       ├── error_boundary.dart
+│       ├── owid_card.dart
+│       └── perspective/
+├── web/
+├── Dockerfile
+└── pubspec.yaml
 ```
 
-## Getting Started
+## Features Implemented
 
-### Prerequisites
+- Upward-scrolling feed via `CustomScrollView(reverse: true)`.
+- 2-column masonry grid via `SliverMasonryGrid.count`.
+- OWID line charts rendered from JSON payloads.
+- Aesthetic image cards with stable aspect ratio placeholders and full-screen image viewer.
+- Perspective flip overlay widgets.
+- Finite feed completion state with `"The Garden is Watered."`.
+- Local read-count tracking with daily reset.
+- Error boundary wrapper at app root.
 
-- Flutter SDK 3.0+
-- Dart SDK 3.0+
-- Android Studio / Xcode (for mobile development)
+## Local Development
 
-### Installation
+Run the backend first at `http://localhost:8000`, then:
 
 ```bash
-# Install dependencies
 flutter pub get
-
-# Generate code (for models, API clients, etc.)
-flutter pub run build_runner build --delete-conflicting-outputs
-
-# Run on emulator/device
-flutter run
-
-# Run on specific device
-flutter run -d <device_id>
+flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000
 ```
 
-### Development
+For mobile simulators:
+
+- iOS simulator: `--dart-define=API_BASE_URL=http://localhost:8000`
+- Android emulator: `--dart-define=API_BASE_URL=http://10.0.2.2:8000`
+- Physical device: use your machine LAN IP, for example `http://192.168.1.100:8000`
+
+## Production Build
+
+`frontend/Dockerfile` builds Flutter web and bakes in:
+
+```text
+API_BASE_URL=https://api.almanac.solar
+```
+
+Production evidence from 2026-05-28: `https://almanac.solar/main.dart.js` contains `https://api.almanac.solar/api/v1`, so the active API base is correct. The same bundle also contains `localhost:8000` in connection-help text, so do not use a broad `grep localhost:` check as proof that the API base leaked.
+
+## Useful Commands
 
 ```bash
-# Run tests
+flutter pub get
+flutter analyze --no-fatal-infos
+flutter build web --release --dart-define=API_BASE_URL=http://localhost:8000
 flutter test
-
-# Run with coverage
-flutter test --coverage
-
-# Run integration tests
-flutter test integration_test
-
-# Analyze code
-flutter analyze
-
-# Format code
 dart format .
 ```
 
-### Build
+`frontend/test/` covers API response models, API configuration defaults, and daily read-state storage. CI runs `flutter test` after analyzer checks and before the release web build.
 
-```bash
-# Build APK (Android)
-flutter build apk --release
+## API Configuration
 
-# Build App Bundle (Android)
-flutter build appbundle --release
+`lib/services/api_config.dart` reads `API_BASE_URL` at compile time:
 
-# Build iOS
-flutter build ios --release
-```
-
-## Key Widgets
-
-### Masonry Grid
 ```dart
-// lib/widgets/masonry_grid.dart
-StaggeredGridView.countBuilder(
-  crossAxisCount: 2,
-  itemCount: cards.length,
-  itemBuilder: (context, index) => BloomCard(card: cards[index]),
-  staggeredTileBuilder: (index) => StaggeredTile.fit(1),
-)
+static const String baseUrl = String.fromEnvironment(
+  'API_BASE_URL',
+  defaultValue: 'http://localhost:8000',
+);
 ```
 
-### Skeleton Screen
-```dart
-// lib/widgets/skeleton_screen.dart
-Shimmer.fromColors(
-  baseColor: Colors.grey[300]!,
-  highlightColor: Colors.grey[100]!,
-  child: Container(/* placeholder */),
-)
-```
-
-### Interactive Chart
-```dart
-// lib/widgets/owid_chart.dart
-LineChart(
-  LineChartData(
-    lineBarsData: [/* OWID data series */],
-    titlesData: /* axis labels */,
-  ),
-)
-```
-
-## Configuration
-
-### API Endpoint
-Edit `lib/core/config/api_config.dart`:
-```dart
-class ApiConfig {
-  static const String baseUrl = 'http://localhost:8000/api/v1';
-  static const Duration timeout = Duration(seconds: 30);
-}
-```
-
-### Theme
-Edit `lib/core/theme/app_theme.dart` for colors, typography, spacing.
-
-## State Management
-
-Using BLoC pattern:
-```dart
-// Event
-class LoadFeedEvent extends FeedEvent {}
-
-// State
-class FeedLoadedState extends FeedState {
-  final List<BloomCard> cards;
-  FeedLoadedState(this.cards);
-}
-
-// BLoC
-class FeedBloc extends Bloc<FeedEvent, FeedState> {
-  FeedBloc() : super(FeedInitialState()) {
-    on<LoadFeedEvent>(_onLoadFeed);
-  }
-}
-
-// Usage in widget
-BlocProvider(
-  create: (context) => FeedBloc()..add(LoadFeedEvent()),
-  child: FeedScreen(),
-)
-```
-
-## Testing
-
-```bash
-# Unit tests
-flutter test test/unit
-
-# Widget tests
-flutter test test/widget
-
-# Integration tests
-flutter drive --target=test_driver/app.dart
-```
-
-## Architecture
-
-Following Clean Architecture principles:
-- **Presentation Layer**: UI components, BLoCs
-- **Domain Layer**: Business logic, entities
-- **Data Layer**: Repositories, API clients, local storage
-
-## Performance
-
-- Lazy loading for feed items
-- Image caching with `cached_network_image`
-- Debouncing for search/filter inputs
-- Hive for fast local storage
-
-## Accessibility
-
-- Semantic labels for screen readers
-- High contrast mode support
-- Minimum touch target size: 48x48
-- Keyboard navigation support
-
-## Contributing
-
-1. Create feature branch
-2. Write tests
-3. Run `flutter analyze` and `flutter test`
-4. Submit PR
-
-## License
-
-Proprietary - Bloom Scroll Team
+`ApiService` appends `/api/v1` for application endpoints.

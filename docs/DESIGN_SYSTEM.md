@@ -2,6 +2,8 @@
 
 **"Paper & Ink"** - The Vibe
 
+**Last audited**: 2026-05-28. Current implementation tokens live in `frontend/lib/theme/design_tokens.dart` and `frontend/lib/theme/bloom_theme.dart`.
+
 ---
 
 ## Philosophy
@@ -111,51 +113,53 @@ Container(
 ```dart
 // Design Tokens (frontend/lib/theme/design_tokens.dart)
 class BloomTypography {
-  // Headings (Libre Baskerville)
-  static final h1 = GoogleFonts.libreBaskerville(
-    fontSize: 32,
-    fontWeight: FontWeight.w700,
-    color: BloomColors.inkPrimary,
-    height: 1.2,
-  );
+  static const String headingFont = 'Libre Baskerville';
+  static const String bodyFont = 'Inter';
 
-  static final h2 = GoogleFonts.libreBaskerville(
-    fontSize: 24,
+  // Headings (Libre Baskerville)
+  static const TextStyle h1 = TextStyle(
+    fontFamily: headingFont,
+    fontSize: 28,
     fontWeight: FontWeight.w700,
     color: BloomColors.inkPrimary,
     height: 1.3,
   );
 
-  static final h3 = GoogleFonts.libreBaskerville(
-    fontSize: 20,
+  static const TextStyle h2 = TextStyle(
+    fontFamily: headingFont,
+    fontSize: 22,
     fontWeight: FontWeight.w700,
     color: BloomColors.inkPrimary,
-    height: 1.4,
+    height: 1.3,
   );
 
-  static final h4 = GoogleFonts.libreBaskerville(
-    fontSize: 16,
-    fontWeight: FontWeight.w600,
+  static const TextStyle h3 = TextStyle(
+    fontFamily: headingFont,
+    fontSize: 18,
+    fontWeight: FontWeight.w700,
     color: BloomColors.inkPrimary,
-    height: 1.4,
+    height: 1.3,
   );
 
   // Body (Inter)
-  static final bodyLarge = GoogleFonts.inter(
+  static const TextStyle bodyLarge = TextStyle(
+    fontFamily: bodyFont,
     fontSize: 16,
     fontWeight: FontWeight.w400,
     color: BloomColors.inkPrimary,
     height: 1.5,
   );
 
-  static final bodyMedium = GoogleFonts.inter(
+  static const TextStyle bodyMedium = TextStyle(
+    fontFamily: bodyFont,
     fontSize: 14,
     fontWeight: FontWeight.w400,
     color: BloomColors.inkPrimary,
     height: 1.5,
   );
 
-  static final bodySmall = GoogleFonts.inter(
+  static const TextStyle bodySmall = TextStyle(
+    fontFamily: bodyFont,
     fontSize: 12,
     fontWeight: FontWeight.w400,
     color: BloomColors.inkSecondary,
@@ -163,21 +167,32 @@ class BloomTypography {
   );
 
   // Labels & Captions (Inter)
-  static final labelLarge = GoogleFonts.inter(
+  static const TextStyle labelLarge = TextStyle(
+    fontFamily: bodyFont,
+    fontSize: 16,
+    fontWeight: FontWeight.w600,
+    color: BloomColors.inkPrimary,
+    height: 1.2,
+  );
+
+  static const TextStyle labelMedium = TextStyle(
+    fontFamily: bodyFont,
     fontSize: 14,
     fontWeight: FontWeight.w600,
     color: BloomColors.inkPrimary,
-    height: 1.4,
+    height: 1.2,
   );
 
-  static final labelMedium = GoogleFonts.inter(
+  static const TextStyle labelSmall = TextStyle(
+    fontFamily: bodyFont,
     fontSize: 12,
     fontWeight: FontWeight.w600,
-    color: BloomColors.inkSecondary,
-    height: 1.3,
+    color: BloomColors.inkPrimary,
+    height: 1.2,
   );
 
-  static final caption = GoogleFonts.inter(
+  static const TextStyle caption = TextStyle(
+    fontFamily: bodyFont,
     fontSize: 11,
     fontWeight: FontWeight.w400,
     color: BloomColors.inkSecondary,
@@ -185,16 +200,26 @@ class BloomTypography {
   );
 
   // Data display (Inter with tabular figures)
-  static final dataLarge = GoogleFonts.inter(
-    fontSize: 32,
-    fontWeight: FontWeight.w700,
+  static const TextStyle dataLarge = TextStyle(
+    fontFamily: bodyFont,
+    fontSize: 24,
+    fontWeight: FontWeight.w600,
     color: BloomColors.inkPrimary,
     fontFeatures: [FontFeature.tabularFigures()],
   );
 
-  static final dataMedium = GoogleFonts.inter(
-    fontSize: 24,
+  static const TextStyle dataMedium = TextStyle(
+    fontFamily: bodyFont,
+    fontSize: 16,
     fontWeight: FontWeight.w600,
+    color: BloomColors.inkPrimary,
+    fontFeatures: [FontFeature.tabularFigures()],
+  );
+
+  static const TextStyle dataSmall = TextStyle(
+    fontFamily: bodyFont,
+    fontSize: 12,
+    fontWeight: FontWeight.w400,
     color: BloomColors.inkPrimary,
     fontFeatures: [FontFeature.tabularFigures()],
   );
@@ -611,6 +636,6 @@ When building new features, ensure:
 
 ---
 
-**Version**: 2.0
-**Last Updated**: 2025-11-19
+**Version**: 2.1
+**Last Updated**: 2026-05-28
 **Maintainer**: Design Team

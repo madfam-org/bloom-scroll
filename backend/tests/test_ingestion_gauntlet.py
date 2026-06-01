@@ -3,9 +3,14 @@
 from pathlib import Path
 
 import pytest
-from app.ingestion.owid_connector import OWIDConnector
+from httpx import AsyncClient
+from pydantic import ValidationError
 
+from app.analysis.processor import NLPProcessor
+from app.ingestion.aesthetics import AestheticsConnector
+from app.ingestion.owid import OWIDConnector
 from app.models.bloom_card import BloomCard
+from app.schemas.bloom_card import BloomCardCreate
 
 POISON_PILLS_DIR = Path(__file__).parent / "fixtures" / "poison_pills"
 
@@ -13,146 +18,117 @@ POISON_PILLS_DIR = Path(__file__).parent / "fixtures" / "poison_pills"
 class TestOWIDIngestionGauntlet:
     """Test OWID connector resilience."""
 
-    def test_malformed_csv_graceful_failure(self):
-        """Should skip invalid rows and continue processing."""
+    def test_malformed_csv_graceful_failure(self) -> None:
+        """Malformed rows should be skipped while valid numeric rows survive."""
         connector = OWIDConnector()
+        payload = connector.parse_csv(POISON_PILLS_DIR / "malformed_owid.csv")
 
-        # Load malformed CSV
-        csv_path = POISON_PILLS_DIR / "malformed_owid.csv"
+        assert payload is not None
+        assert payload["years"] == [2020, 2024]
+        assert payload["values"][0] == 10.5
+        assert payload["values"][1] == pytest.approx(1e18)
+        assert payload["entity"] == "World"
 
-        # Should not raise exception
-        try:
-            cards = connector.parse_csv(csv_path)
-            # Should skip invalid rows but process valid ones
-            assert len(cards) > 0, "Should parse at least some valid rows"
-
-            # Valid rows should be present
-            valid_cards = [c for c in cards if c.title]
-            assert len(valid_cards) > 0
-
-        except Exception as e:
-            pytest.fail(f"Should handle malformed CSV gracefully: {e}")
-
-    def test_missing_required_fields(self):
-        """Should reject cards with missing required fields."""
-        # Attempt to create card without title
-        with pytest.raises(ValueError):
-            BloomCard(
+    def test_missing_required_fields_rejected_by_schema(self) -> None:
+        """API creation schema rejects empty required fields."""
+        with pytest.raises(ValidationError):
+            BloomCardCreate(
                 source_type="OWID",
-                title="",  # Empty title
+                title="",
+                summary=None,
                 original_url="https://example.com",
-                data_payload={}
+                data_payload={},
+                bias_score=None,
+                constructiveness_score=None,
+                embedding=None,
             )
 
-    def test_extreme_values(self):
-        """Should handle extreme numeric values."""
-        # Very large numbers
+    def test_model_tolerates_extreme_values(self) -> None:
+        """SQLAlchemy model construction should not crash on extreme payload values."""
         card = BloomCard(
             source_type="OWID",
             title="Test",
             original_url="https://example.com",
-            data_payload={
-                "values": [1e308, -1e308, 0, 1e-308]  # Extreme floats
-            }
+            data_payload={"values": [1e308, -1e308, 0, 1e-308]},
         )
 
-        # Should not crash
-        assert card is not None
+        assert card.data_payload["values"][0] == 1e308
 
 
 class TestAestheticIngestionGauntlet:
     """Test aesthetic connector resilience."""
 
-    def test_invalid_image_url(self):
-        """Should validate image URLs."""
-        # Invalid URL should be rejected or sanitized
-        # payload would be:
-        # {"image_url": "not-a-url", "aspect_ratio": 1.0, "dominant_color": "#000000"}
-        # Should either raise validation error or sanitize
-        # (implementation-dependent)
-        assert True  # Placeholder
+    @pytest.mark.asyncio
+    async def test_invalid_image_url_falls_back_to_square_ratio(self) -> None:
+        """Invalid image URLs should return a safe aspect-ratio fallback."""
+        connector = AestheticsConnector(timeout=1)
 
-    def test_missing_aspect_ratio(self):
-        """Should calculate aspect ratio if missing."""
-        # Should have fallback to 1.0 or fetch from image
-        assert True  # Placeholder
+        assert await connector.calculate_aspect_ratio("not-a-url") == 1.0
 
-    def test_null_metadata(self):
-        """Should handle null/missing metadata gracefully."""
+    def test_invalid_image_bytes_fall_back_to_gray(self) -> None:
+        """Invalid image data should return a safe placeholder color."""
+        connector = AestheticsConnector()
+
+        assert connector.extract_dominant_color(b"not-an-image") == "#808080"
+
+    def test_null_metadata_payload_is_still_storable(self) -> None:
+        """Malformed source metadata should not prevent storing the raw payload."""
         card = BloomCard(
             source_type="AESTHETIC",
             title="Test",
             original_url="https://example.com",
             data_payload={
                 "image_url": "https://example.com/image.jpg",
-                "aspect_ratio": None,  # Null value
+                "aspect_ratio": None,
                 "dominant_color": None,
-                "vibe_tags": None
-            }
+                "vibe_tags": None,
+            },
         )
 
-        # Should use defaults
-        data = card.aestheticData
-        assert data is not None or card.data_payload is not None
+        assert card.data_payload["aspect_ratio"] is None
 
 
 class TestVectorEmbeddingGauntlet:
     """Test vector embedding resilience."""
 
-    def test_empty_text_embedding(self):
-        """Should handle empty text gracefully."""
-        from app.analysis.nlp_service import NLPService
+    def test_empty_text_embedding_returns_zero_vector(self) -> None:
+        """Empty text should not load the model or raise."""
+        nlp = NLPProcessor()
 
-        nlp = NLPService()
+        embedding = nlp.generate_embedding("")
 
-        # Empty string should return zero vector or raise error
-        try:
-            embedding = nlp.generate_embedding("")
-            assert embedding is None or len(embedding) == 384
-        except ValueError:
-            # Acceptable to reject empty text
-            pass
+        assert embedding == [0.0] * 384
 
-    def test_very_long_text_embedding(self):
-        """Should truncate or handle very long text."""
-        from app.analysis.nlp_service import NLPService
+    def test_embedding_failure_returns_zero_vector(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Model load/generation failures should degrade to a zero vector."""
+        nlp = NLPProcessor()
 
-        nlp = NLPService()
+        def fail_load() -> None:
+            raise RuntimeError("model unavailable")
 
-        # Very long text (SBERT has 512 token limit)
-        long_text = "word " * 10000
+        monkeypatch.setattr(nlp, "_load_embedding_model", fail_load)
 
-        embedding = nlp.generate_embedding(long_text)
-        assert len(embedding) == 384  # Should not crash
+        embedding = nlp.generate_embedding("word " * 10000)
+
+        assert embedding == [0.0] * 384
 
 
 class TestAPIErrorHandling:
-    """Test API endpoint error handling."""
+    """Test API endpoint validation paths that do not require a real database."""
 
     @pytest.mark.asyncio
-    async def test_feed_with_invalid_context(self, client):
-        """Should handle invalid user_context IDs."""
+    async def test_feed_with_invalid_context(self, client: AsyncClient) -> None:
+        """Invalid user_context UUIDs should be rejected before DB work."""
         response = await client.get(
-            "/feed",
-            params={"user_context": ["invalid-uuid", "not-a-uuid"]}
+            "/api/v1/feed",
+            params={"user_context": ["invalid-uuid", "not-a-uuid"]},
         )
 
-        # Should either ignore invalid IDs or return 400
-        assert response.status_code in [200, 400]
+        assert response.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_feed_with_negative_limit(self, client):
-        """Should reject negative limits."""
-        response = await client.get(
-            "/feed",
-            params={"limit": -10}
-        )
+    async def test_feed_with_negative_limit(self, client: AsyncClient) -> None:
+        """Negative limits should fail FastAPI validation."""
+        response = await client.get("/api/v1/feed", params={"limit": -10})
 
-        assert response.status_code == 422  # Validation error
-
-    @pytest.mark.asyncio
-    async def test_database_connection_failure(self, client, monkeypatch):
-        """Should return 503 when database is unavailable."""
-        # Mock database connection failure
-        # (requires proper error handling in routes)
-        assert True  # Placeholder for implementation
+        assert response.status_code == 422

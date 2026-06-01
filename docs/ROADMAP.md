@@ -2,6 +2,8 @@
 
 **The Work** - Story tracking and implementation status
 
+**Last audited**: 2026-05-28. For evidence from code, manifests, tests, and public production probes, see [CURRENT_STATE.md](CURRENT_STATE.md). For the session-level wrap-up, see [STABILITY_SESSION_2026-05-28.md](STABILITY_SESSION_2026-05-28.md).
+
 ---
 
 ## Overview
@@ -18,7 +20,7 @@ This roadmap tracks the 7 core implementation stories for Bloom Scroll, generate
 | **STORY-002** | Mobile Charts & Upward Scroll (The Stem) | The Stem | 🔴 Critical | ✅ **Done** | [Details](#story-002-the-stem) |
 | **STORY-003** | Aesthetics & Masonry Grid (The Flower) | The Flower | 🟡 High | ✅ **Done** | [Details](#story-003-the-flower) |
 | **STORY-004** | Vector Serendipity & Bias Engine (The Brain) | The Lens | 🔴 Critical | ✅ **Done** | [Implementation](STORY-004-IMPLEMENTATION.md) |
-| **STORY-005** | Poison Pill & Stability Tests (The Immunity) | Quality | 🟡 High | 🚧 **In Progress** | [Details](#story-005-the-immunity) |
+| **STORY-005** | Poison Pill & Stability Tests (The Immunity) | Quality | 🟡 High | ✅ **Backend Repaired** | [Details](#story-005-the-immunity) |
 | **STORY-006** | Perspective Overlay & Flip Animation (The Soul) | The Lens | 🟢 Medium | ✅ **Done** | [Implementation](STORY-006-IMPLEMENTATION.md) |
 | **STORY-007** | Finite Feed & Completion Widget (The Boundary) | The Scroll | 🔴 Critical | ✅ **Done** | [Implementation](STORY-007-IMPLEMENTATION.md) |
 
@@ -58,7 +60,7 @@ This roadmap tracks the 7 core implementation stories for Bloom Scroll, generate
 - `infrastructure/docker-compose.yml`
 - `backend/alembic/versions/001_initial_schema.py`
 - `backend/app/models/bloom_card.py`
-- `backend/app/ingestion/owid_connector.py`
+- `backend/app/ingestion/owid.py`
 - `backend/app/api/routes.py`
 
 **Documentation**: See `/STORY-001.md` for implementation details.
@@ -126,9 +128,8 @@ This roadmap tracks the 7 core implementation stories for Bloom Scroll, generate
 - [x] Feed mixes OWID + aesthetic cards
 
 #### Files Changed
-- `backend/app/ingestion/cari_connector.py`
-- `frontend/lib/widgets/aesthetic_card.dart`
-- `frontend/lib/screens/image_viewer.dart`
+- `backend/app/ingestion/aesthetics.py`
+- `frontend/lib/widgets/aesthetic_card.dart` (includes the full-screen image viewer)
 - `frontend/lib/models/bloom_card.dart`
 
 **Documentation**: See `/STORY-003.md` for implementation details.
@@ -161,9 +162,9 @@ This roadmap tracks the 7 core implementation stories for Bloom Scroll, generate
 
 #### Files Changed
 - `backend/app/curation/bloom_algorithm.py`
-- `backend/app/analysis/nlp_service.py`
+- `backend/app/analysis/processor.py`
 - `backend/app/api/routes.py`
-- `backend/requirements.txt` (sentence-transformers)
+- `backend/pyproject.toml` and ML requirement pins (pgvector plus optional embedding runtime)
 
 **Documentation**: See [STORY-004-IMPLEMENTATION.md](STORY-004-IMPLEMENTATION.md) for detailed implementation.
 
@@ -173,7 +174,7 @@ This roadmap tracks the 7 core implementation stories for Bloom Scroll, generate
 **Poison Pill & Stability Tests**
 
 **Epic**: Quality Assurance
-**Status**: 🚧 In Progress
+**Status**: ✅ Backend and frontend stability gates repaired
 **Priority**: High
 
 #### Objectives
@@ -185,20 +186,21 @@ This roadmap tracks the 7 core implementation stories for Bloom Scroll, generate
 - Ensure graceful degradation
 
 #### Acceptance Criteria
-- [ ] Backend handles malformed OWID CSV gracefully
-- [ ] Backend handles invalid image URLs without crashing
+- [x] Backend handles malformed OWID CSV gracefully
+- [x] Backend handles invalid image URLs without crashing
 - [ ] Frontend shows skeleton screens during load
 - [ ] Frontend handles missing metadata fields
-- [ ] Aspect ratio breakers don't cause layout shifts
+- [x] Backend malformed metadata fallbacks are covered
+- [ ] Frontend visual stress tests cover aspect ratio breakers
 - [ ] Error boundaries catch widget failures
-- [ ] All edge case tests pass
+- [x] Backend edge case tests pass
 
 #### Files To Create
 - `backend/tests/fixtures/poison_pills/`
 - `backend/tests/test_ingestion_gauntlet.py`
 - `frontend/test/widget_stress_test.dart`
 
-**Status**: Backend tests initialized, frontend tests pending.
+**Status**: Backend tests repaired on 2026-05-28. `poetry run pytest -q` passes 28 tests across app config, health, feed, auth, ingestion, dependency-lock, and poison-pill coverage. Frontend model/config/storage tests run in CI.
 
 ---
 
@@ -347,13 +349,17 @@ This roadmap tracks the 7 core implementation stories for Bloom Scroll, generate
 
 ### Phase 4: Polish & Testing 🚧
 **Goal**: Edge case handling + stability
-**Status**: In Progress
+**Status**: Needs repair / hardening
 
 - [x] Design system documentation
-- [ ] Poison pill tests
+- [x] Backend poison pill tests repaired and passing
+- [x] Frontend model/config/storage tests added to CI
 - [ ] Error boundary testing
 - [ ] Performance optimization
-- [ ] Production deployment
+- [x] Production deployment exists (`almanac.solar`, `api.almanac.solar`)
+- [x] Production docs exposure hardened
+- [x] Enclii `ps` runtime-health parity implemented upstream in `madfam-org/enclii@03e2847` and released as Enclii CLI `v1.0.0-alpha.1`; the distributed artifact was verified against Bloom production.
+- [x] Backend Poetry lockfile committed; heavy ML wheels isolated into pinned Linux CPU requirements with pytest coverage for lock and Docker safety.
 
 ---
 
@@ -362,18 +368,21 @@ This roadmap tracks the 7 core implementation stories for Bloom Scroll, generate
 ### Immediate (Week 1)
 1. ✅ Complete STORY-007 implementation
 2. ✅ Update all documentation
-3. 🚧 Finish STORY-005 (poison pill tests)
-4. 🔜 Run end-to-end testing
+3. ✅ Repair STORY-005 test imports/endpoints
+4. ✅ Hide production `/docs` and `/openapi.json`
+5. ✅ Commit backend dependency lockfile without regressing CPU-only Linux images
+6. 🔜 Add frontend stress tests and end-to-end testing
+7. 🔜 Add production observability and load/soak testing
 
 ### Short Term (Weeks 2-4)
 - [ ] Complete STORY-005 acceptance criteria
 - [ ] Add more OWID datasets (renewable energy, poverty, education)
 - [ ] Expand Are.na channels for aesthetic diversity
 - [ ] Performance profiling (Flutter DevTools)
-- [ ] Production deployment preparation
+- [ ] Production hardening and observability cleanup
 
 ### Medium Term (Months 2-3)
-- [ ] Integrate OpenAlex (science papers)
+- [x] Integrate OpenAlex (science papers)
 - [ ] Real bias detection with PoliticalBiasBERT
 - [ ] Constructiveness scoring model
 - [ ] User authentication & profiles
@@ -392,7 +401,7 @@ This roadmap tracks the 7 core implementation stories for Bloom Scroll, generate
 
 | Risk | Impact | Mitigation | Status |
 |------|--------|------------|--------|
-| pgvector performance degrades with scale | High | Benchmark with 100k+ vectors, optimize indexes | ✅ Addressed (IVFFlat index) |
+| pgvector performance degrades with scale | High | Benchmark with 100k+ vectors, optimize indexes | Partially addressed (HNSW migration exists; current algorithm filters candidates in Python) |
 | OWID API rate limits | Medium | Cache datasets, batch fetch overnight | ✅ No limits observed |
 | Are.na API instability | Low | Fallback to local cache, graceful degradation | ⏳ To monitor |
 | Flutter performance on low-end devices | Medium | Profile on older Android devices, optimize | 🔜 Planned |
@@ -403,14 +412,14 @@ This roadmap tracks the 7 core implementation stories for Bloom Scroll, generate
 ## Metrics & KPIs
 
 ### Development Velocity
-- **Stories completed**: 6/7 (86%)
-- **Average story duration**: ~2 days
-- **Blocker rate**: 0 (no major blockers)
+- **Stories completed**: 6/7 feature stories
+- **Stabilization story**: Backend repaired; focused frontend coverage added
+- **Production status**: Public alpha is live
 
 ### Code Quality
-- **Test coverage**: Backend ~60%, Frontend ~40% (target: 80%)
-- **Linter compliance**: 100% (Ruff for Python, Dart analyzer for Flutter)
-- **Documentation**: All major features documented
+- **Test coverage**: Not currently verified in this audit
+- **Backend test signal**: `poetry run pytest -q` passes 28 tests
+- **Documentation**: Current-state reference added in `docs/CURRENT_STATE.md`
 
 ### Technical Debt
 - [ ] Refactor OWID connector for modularity
@@ -439,6 +448,6 @@ This roadmap tracks the 7 core implementation stories for Bloom Scroll, generate
 
 ---
 
-**Version**: 1.0
-**Last Updated**: 2025-11-19
-**Maintained by**: Project Management Team
+**Version**: 1.1
+**Last Updated**: 2026-05-28
+**Maintained by**: Project team

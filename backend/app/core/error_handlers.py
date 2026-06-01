@@ -1,8 +1,9 @@
 """Global error handlers for FastAPI application."""
 
 import logging
+from typing import cast
 
-from fastapi import Request, status
+from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
@@ -10,30 +11,32 @@ from sqlalchemy.exc import SQLAlchemyError
 logger = logging.getLogger(__name__)
 
 
-async def database_error_handler(request: Request, exc: SQLAlchemyError) -> JSONResponse:
+async def database_error_handler(request: Request, exc: Exception) -> JSONResponse:
     """Handle database errors gracefully."""
-    logger.error(f"Database error: {exc}", exc_info=True)
+    sqlalchemy_error = cast(SQLAlchemyError, exc)
+    logger.error(f"Database error: {sqlalchemy_error}", exc_info=True)
 
     return JSONResponse(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         content={
             "error": "database_unavailable",
             "message": "The database is temporarily unavailable. Please try again later.",
-            "details": str(exc) if request.app.debug else None,
+            "details": str(sqlalchemy_error) if request.app.debug else None,
         },
     )
 
 
-async def validation_error_handler(request: Request, exc: ValidationError) -> JSONResponse:
+async def validation_error_handler(request: Request, exc: Exception) -> JSONResponse:
     """Handle Pydantic validation errors."""
-    logger.warning(f"Validation error: {exc}")
+    validation_error = cast(ValidationError, exc)
+    logger.warning(f"Validation error: {validation_error}")
 
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content={
             "error": "validation_error",
             "message": "Invalid request data",
-            "details": exc.errors(),
+            "details": validation_error.errors(),
         },
     )
 
@@ -52,7 +55,7 @@ async def generic_error_handler(request: Request, exc: Exception) -> JSONRespons
     )
 
 
-def register_error_handlers(app):
+def register_error_handlers(app: FastAPI) -> None:
     """Register all error handlers with FastAPI app."""
     app.add_exception_handler(SQLAlchemyError, database_error_handler)
     app.add_exception_handler(ValidationError, validation_error_handler)

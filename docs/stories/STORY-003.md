@@ -1,9 +1,19 @@
 # STORY-003: Entropy & The Masonry Grid
 
+> [!IMPORTANT]
+> MADFAM-ENCLII-FIRST-LEGACY-RAW v1: This document contains legacy raw infrastructure command examples.
+> Routine production operations must use Enclii web, API, or CLI. Treat raw
+> `kubectl`, `helm`, SSH, provider CLI/API, `docker exec`, and direct container
+> access as platform bootstrap or documented break-glass only, and record any
+> missing Enclii adapter gap.
+
+
 **Status**: ✅ Implemented
 **Epic**: The Visual Garden
 **Priority**: P1
 **Stack**: Python (Are.na API), Flutter (Staggered Grid)
+
+> Current audit note (2026-05-28): This is a historical story record. Current files are `backend/app/ingestion/aesthetics.py` and `frontend/lib/widgets/aesthetic_card.dart`; the full-screen image viewer is implemented inside `aesthetic_card.dart`. See [../CURRENT_STATE.md](../CURRENT_STATE.md).
 
 ## Overview
 

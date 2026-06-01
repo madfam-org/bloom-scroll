@@ -35,6 +35,12 @@ spec:
         - containerPort: 8000
           name: http
         env:
+        # Must match backend/app/main.py docs gate so /docs, /redoc, and
+        # /openapi.json are disabled in production.
+        - name: ENV
+          value: production
+        - name: ENVIRONMENT
+          value: production
         # torch's default_cache_dir() calls getpwuid() which 502s when
         # runAsUser (1001) has no /etc/passwd entry (Dockerfile creates
         # only uid 1000). Hardcode the cache dir + HOME to sidestep.

@@ -1,9 +1,9 @@
 """NLP processing for embeddings and bias detection."""
 
 import logging
+from typing import Any
 
 import numpy as np
-from sentence_transformers import SentenceTransformer
 
 logger = logging.getLogger(__name__)
 
@@ -15,16 +15,18 @@ class NLPProcessor:
     - Bias detection (optional/mock for MVP)
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the processor with models."""
-        self._embedding_model = None
-        self._bias_model = None
+        self._embedding_model: Any | None = None
+        self._bias_model: Any | None = None
 
-    def _load_embedding_model(self) -> SentenceTransformer:
+    def _load_embedding_model(self) -> Any:
         """Lazy load the embedding model."""
         if self._embedding_model is None:
             logger.info("Loading sentence-transformers model...")
-            self._embedding_model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+            from sentence_transformers import SentenceTransformer
+
+            self._embedding_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
             logger.info("Embedding model loaded successfully")
         return self._embedding_model
 
@@ -45,7 +47,8 @@ class NLPProcessor:
         try:
             model = self._load_embedding_model()
             embedding = model.encode(text, convert_to_numpy=True)
-            return embedding.tolist()
+            values = np.asarray(embedding, dtype=float).ravel().tolist()
+            return [float(value) for value in values]
         except Exception as e:
             logger.error(f"Error generating embedding: {e}")
             return [0.0] * 384
@@ -66,7 +69,8 @@ class NLPProcessor:
         try:
             model = self._load_embedding_model()
             embeddings = model.encode(texts, convert_to_numpy=True, show_progress_bar=True)
-            return embeddings.tolist()
+            rows = np.asarray(embeddings, dtype=float).tolist()
+            return [[float(value) for value in row] for row in rows]
         except Exception as e:
             logger.error(f"Error generating batch embeddings: {e}")
             return [[0.0] * 384] * len(texts)
@@ -156,7 +160,8 @@ class NLPProcessor:
         try:
             embeddings_array = np.array(embeddings)
             avg_embedding = np.mean(embeddings_array, axis=0)
-            return avg_embedding.tolist()
+            values = np.asarray(avg_embedding, dtype=float).ravel().tolist()
+            return [float(value) for value in values]
         except Exception as e:
             logger.error(f"Error calculating context vector: {e}")
             return [0.0] * 384

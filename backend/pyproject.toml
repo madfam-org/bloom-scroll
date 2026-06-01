@@ -16,11 +16,8 @@ sqlalchemy = "^2.0.23"
 alembic = "^1.12.1"
 asyncpg = "^0.29.0"
 psycopg2-binary = "^2.9.9"
-redis = ">=5.0.1,<8.0.0"
+redis = ">=5.0.1,<9.0.0"
 celery = "^5.3.4"
-sentence-transformers = ">=2.2.2,<6.0.0"
-transformers = "^4.35.0"
-torch = "^2.1.0"
 httpx = ">=0.25.1,<0.29.0"
 beautifulsoup4 = "^4.12.2"
 lxml = ">=4.9.3,<7.0.0"
@@ -43,7 +40,7 @@ pytest-asyncio = ">=0.21.1,<1.4.0"
 pytest-cov = ">=4.1,<8.0"
 black = ">=23.11,<27.0"
 ruff = ">=0.1.6,<0.16.0"
-mypy = "^1.7.0"
+mypy = ">=1.7,<3.0"
 httpx = ">=0.25.1,<0.29.0"
 
 [build-system]
@@ -72,6 +69,9 @@ python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
+exclude = [
+    "^test_.*\\.py$",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

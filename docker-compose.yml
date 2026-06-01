@@ -1,17 +1,15 @@
-version: "3.8"
-
 services:
-  # Bloom Scroll API (FastAPI)
+  # Bloom Scroll API (FastAPI). This root compose file is a lightweight
+  # compatibility entrypoint; infrastructure/docker-compose*.yml remains the
+  # canonical local infrastructure path.
   api:
     build:
       context: ./backend
       dockerfile: Dockerfile
-      target: development
     ports:
-      - "5200:5200"
+      - "5200:8000"
     environment:
       - PYTHON_ENV=development
-      - PORT=5200
       - DATABASE_URL=postgresql://bloom:bloom_dev@postgres:5432/bloom_dev
       - REDIS_URL=redis://redis:6379/0
       - EMBEDDING_MODEL=all-MiniLM-L6-v2
@@ -26,23 +24,7 @@ services:
         condition: service_healthy
     networks:
       - bloom-network
-
-  # Content Aggregator Worker
-  aggregator:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.worker
-    environment:
-      - WORKER_TYPE=aggregator
-      - DATABASE_URL=postgresql://bloom:bloom_dev@postgres:5432/bloom_dev
-      - REDIS_URL=redis://redis:6379/0
-    volumes:
-      - ./backend:/app
-    depends_on:
-      - api
-      - redis
-    networks:
-      - bloom-network
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   # PostgreSQL Database with pgvector
   postgres:

@@ -16,7 +16,9 @@ spec:
         url: https://almanac.solar
         href: https://almanac.solar
         probeUrl: https://almanac.solar/main.dart.js
-        assertNotContains: 'localhost:'
+        # The bundle legitimately contains localhost in connection-help copy;
+        # assert against the actual leaked default API base instead.
+        assertNotContains: 'http://localhost:8000/api/v1'
         group: Almanac
         family: Content & Creative
         description: Slow web aggregator — 20 items, then stop

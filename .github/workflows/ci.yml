@@ -30,6 +30,15 @@ jobs:
       - name: Run NetworkPolicy port lint
         run: python3 scripts/check-networkpolicy-ports.py infra/k8s/
 
+  compose-config:
+    name: Local Compose Config
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate root Compose file
+        run: docker compose config --quiet
+
   backend-lint:
     name: Backend Lint & Type Check
     runs-on: ubuntu-latest
@@ -147,6 +156,9 @@ jobs:
         # codebase, tracked as separate cleanup work). Warnings + errors
         # still fail CI.
         run: flutter analyze --no-fatal-infos
+
+      - name: Test
+        run: flutter test
 
       - name: Build web
         run: flutter build web --release

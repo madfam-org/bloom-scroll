@@ -15,9 +15,10 @@
 /// reusable build workflow's change-detection saw no frontend file
 /// diff on a status-probe-only commit and skipped the rebuild,
 /// leaving prod stuck on a bundle from before #71. Always confirm
-/// the prod bundle by curling
-/// `https://almanac.solar/main.dart.js | grep localhost:` — empty
-/// output = correctly baked, any hits = the defaultValue leaked.
+/// the prod bundle by curling `https://almanac.solar/main.dart.js` and
+/// checking for the exact leaked API base `http://localhost:8000/api/v1`.
+/// A broad `localhost:` grep is too noisy because the bundle also contains
+/// localhost URLs in the connection-help dialog copy.
 library;
 
 class ApiConfig {

@@ -5,16 +5,23 @@ Provides JWT verification and user extraction for API endpoints.
 Tokens are issued by Janua (MADFAM's centralized auth service).
 """
 
+import time
+from collections.abc import Awaitable, Callable
+from typing import Any, cast
 
+import httpx
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from app.core.config import settings
 
 # Security scheme for JWT Bearer tokens
 security = HTTPBearer(auto_error=False)
+
+_jwks_cache: dict[str, Any] | None = None
+_jwks_cache_expires_at = 0.0
 
 
 class User(BaseModel):
@@ -44,6 +51,124 @@ class TokenPayload(BaseModel):
     iss: str = "janua"
 
 
+def _configured_algorithm() -> str:
+    """Return the configured JWT algorithm in canonical uppercase form."""
+    return settings.JANUA_JWT_ALGORITHM.strip().upper()
+
+
+def _decode_options() -> dict[str, bool]:
+    """Build python-jose verification options from settings."""
+    return {
+        "verify_exp": True,
+        "verify_aud": bool(settings.JANUA_JWT_AUDIENCE),
+        "verify_iss": bool(settings.JANUA_JWT_ISSUER),
+    }
+
+
+def _get_jwks() -> dict[str, Any]:
+    """Fetch and cache Janua JWKS keys for RS256 verification."""
+    global _jwks_cache, _jwks_cache_expires_at
+
+    now = time.time()
+    if _jwks_cache is not None and now < _jwks_cache_expires_at:
+        return _jwks_cache
+
+    response = httpx.get(settings.JANUA_JWKS_URI, timeout=5)
+    response.raise_for_status()
+    jwks = response.json()
+    if not isinstance(jwks, dict) or not isinstance(jwks.get("keys"), list):
+        raise ValueError("Invalid JWKS response")
+
+    _jwks_cache = jwks
+    _jwks_cache_expires_at = now + settings.JANUA_JWKS_CACHE_SECONDS
+    return jwks
+
+
+def _select_jwk(token: str) -> dict[str, Any] | None:
+    """Select the JWKS key matching the token's kid header."""
+    header = jwt.get_unverified_header(token)
+    kid = header.get("kid")
+    alg = header.get("alg")
+    if alg != _configured_algorithm():
+        return None
+
+    keys = _get_jwks().get("keys", [])
+    for key in keys:
+        if not isinstance(key, dict):
+            continue
+        if kid and key.get("kid") == kid:
+            return key
+
+    if not kid and len(keys) == 1 and isinstance(keys[0], dict):
+        return keys[0]
+
+    return None
+
+
+def _decode_jwt(token: str) -> dict[str, Any]:
+    """Decode a Janua JWT using RS256 JWKS or explicit HS256 fallback."""
+    algorithm = _configured_algorithm()
+    audience = settings.JANUA_JWT_AUDIENCE or None
+    issuer = settings.JANUA_JWT_ISSUER or None
+
+    if algorithm == "RS256":
+        jwk = _select_jwk(token)
+        if not jwk:
+            raise JWTError("No matching JWKS key")
+        return cast(dict[str, Any], jwt.decode(
+            token,
+            jwk,
+            algorithms=["RS256"],
+            audience=audience,
+            issuer=issuer,
+            options=_decode_options(),
+        ))
+
+    if algorithm.startswith("HS"):
+        return cast(dict[str, Any], jwt.decode(
+            token,
+            settings.JANUA_JWT_SECRET,
+            algorithms=[algorithm],
+            audience=audience,
+            issuer=issuer,
+            options=_decode_options(),
+        ))
+
+    raise JWTError(f"Unsupported Janua JWT algorithm: {algorithm}")
+
+
+def _payload_from_claims(payload: dict[str, Any]) -> TokenPayload:
+    """Normalize decoded claims into the API's user payload model."""
+    sub = payload.get("sub")
+    email = payload.get("email")
+    exp = payload.get("exp")
+    iat = payload.get("iat")
+    if not isinstance(sub, str) or not sub:
+        raise ValueError("JWT missing sub")
+    if not isinstance(email, str) or not email:
+        raise ValueError("JWT missing email")
+    if not isinstance(exp, int):
+        raise ValueError("JWT missing exp")
+    if not isinstance(iat, int):
+        raise ValueError("JWT missing iat")
+
+    roles = payload.get("roles", [])
+    permissions = payload.get("permissions", [])
+
+    return TokenPayload(
+        sub=sub,
+        email=email,
+        first_name=payload.get("first_name"),
+        last_name=payload.get("last_name"),
+        roles=roles if isinstance(roles, list) else [],
+        permissions=permissions if isinstance(permissions, list) else [],
+        org_id=payload.get("org_id"),
+        exp=exp,
+        iat=iat,
+        iss=payload.get("iss", "janua"),
+    )
+
+
 def verify_token(token: str) -> TokenPayload | None:
     """
     Verify a Janua JWT token.
@@ -55,26 +180,8 @@ def verify_token(token: str) -> TokenPayload | None:
         TokenPayload if valid, None otherwise
     """
     try:
-        payload = jwt.decode(
-            token,
-            settings.JANUA_JWT_SECRET,
-            algorithms=[settings.JANUA_JWT_ALGORITHM],
-            options={"verify_exp": True},
-        )
-
-        return TokenPayload(
-            sub=payload.get("sub"),
-            email=payload.get("email"),
-            first_name=payload.get("first_name"),
-            last_name=payload.get("last_name"),
-            roles=payload.get("roles", []),
-            permissions=payload.get("permissions", []),
-            org_id=payload.get("org_id"),
-            exp=payload.get("exp"),
-            iat=payload.get("iat"),
-            iss=payload.get("iss", "janua"),
-        )
-    except JWTError:
+        return _payload_from_claims(_decode_jwt(token))
+    except (JWTError, ValueError, ValidationError, httpx.HTTPError):
         return None
 
 
@@ -151,7 +258,7 @@ async def get_current_user_optional(
     )
 
 
-def require_role(required_role: str):
+def require_role(required_role: str) -> Callable[..., Awaitable[User]]:
     """
     Dependency factory for role-based access control.
 
@@ -172,7 +279,7 @@ def require_role(required_role: str):
     return role_checker
 
 
-def require_permission(required_permission: str):
+def require_permission(required_permission: str) -> Callable[..., Awaitable[User]]:
     """
     Dependency factory for permission-based access control.
 

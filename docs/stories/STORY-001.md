@@ -1,8 +1,18 @@
 # STORY-001: Infrastructure & OWID Ingestion
 
+> [!IMPORTANT]
+> MADFAM-ENCLII-FIRST-LEGACY-RAW v1: This document contains legacy raw infrastructure command examples.
+> Routine production operations must use Enclii web, API, or CLI. Treat raw
+> `kubectl`, `helm`, SSH, provider CLI/API, `docker exec`, and direct container
+> access as platform bootstrap or documented break-glass only, and record any
+> missing Enclii adapter gap.
+
+
 **Status**: ✅ Implemented
 **Epic**: The Root System
 **Priority**: P0
+
+> Current audit note (2026-05-28): This is a historical story record. Use [../CURRENT_STATE.md](../CURRENT_STATE.md), the top-level README, and `infrastructure/README.md` for current setup commands and known drift. Production CORS is no longer wildcard, and local development should use `infrastructure/docker-compose.dev.yml` or `infrastructure/docker-compose.yml`.
 
 ## Overview
 
