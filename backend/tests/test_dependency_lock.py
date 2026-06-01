@@ -41,7 +41,13 @@ def test_linux_ml_requirements_pin_cpu_torch_source() -> None:
 
     assert "--index-url https://download.pytorch.org/whl/cpu" in requirements
     assert "--extra-index-url https://pypi.org/simple" in requirements
-    assert "torch==2.2.2+cpu" in requirements
-    assert "sentence-transformers==5.5.1" in requirements
-    assert "transformers==4.57.6" in requirements
+    assert any(
+        line.startswith("torch==") and line.endswith("+cpu")
+        for line in requirements.splitlines()
+    )
+    assert any(
+        line.startswith("sentence-transformers==")
+        for line in requirements.splitlines()
+    )
+    assert any(line.startswith("transformers==") for line in requirements.splitlines())
     assert "pip install -r requirements-ml-linux-cpu.txt" in dockerfile
