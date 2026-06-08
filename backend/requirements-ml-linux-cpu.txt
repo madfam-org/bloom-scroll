@@ -5,4 +5,4 @@
 # use CPU-only PyTorch instead of the much larger CUDA-enabled PyPI wheel set.
 torch==2.12.0+cpu
 sentence-transformers==5.5.1
-transformers==5.9.0
+transformers==5.10.2
