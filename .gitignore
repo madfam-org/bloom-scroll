@@ -46,3 +46,4 @@ htmlcov/
 *.cert
 credentials.json
 secrets.yaml
+node_modules/
