@@ -2647,14 +2647,13 @@ windows-terminal = ["colorama (>=0.4.6)"]
 
 [[package]]
 name = "pymilvus"
-version = "2.6.14"
+version = "3.0.0"
 description = "Python Sdk for Milvus"
 optional = false
 python-versions = ">=3.8"
 groups = ["main"]
 files = [
-    {file = "pymilvus-2.6.14-py3-none-any.whl", hash = "sha256:01694978c2bbbf4bcc5ef29dc788e480245154a38eae32da7184959ea4b501fb"},
-    {file = "pymilvus-2.6.14.tar.gz", hash = "sha256:078fb16731569b2fd8b82436e295f70ee2a682c8892ed0e9c919c9cbc9d0dfbd"},
+    {file = "pymilvus-3.0.0-1-py3-none-any.whl", hash = "sha256:57c8e7c87fbbf579f122b4df893949bc78e50bca2988527864891bd544817b05"},
 ]
 
 [package.dependencies]
@@ -2665,7 +2664,7 @@ pandas = ">=1.2.4"
 protobuf = ">=5.27.2"
 python-dotenv = ">=1.0.1,<2.0.0"
 requests = ">=2.20.0"
-setuptools = ">69"
+setuptools = {version = ">=78.1.1", markers = "python_version >= \"3.9\""}
 
 [package.extras]
 bulk-writer = ["azure-storage-blob", "minio (>=7.0.0)", "pyarrow (>=12.0.0)", "requests", "urllib3"]
