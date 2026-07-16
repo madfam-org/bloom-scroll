@@ -27,11 +27,13 @@ class Settings(BaseSettings):
     CELERY_BROKER_URL: str = "redis://localhost:6379/1"
     CELERY_RESULT_BACKEND: str = "redis://localhost:6379/2"
 
-    # CORS
-    BACKEND_CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:8080"]
-
     # API Keys
     OPENALEX_EMAIL: str = ""
+
+    # Service credential for machine callers of write endpoints (e.g. the
+    # scheduled ingestion CronJob). Sent via the X-API-Key header. Empty
+    # string disables the API-key path entirely.
+    INGEST_API_KEY: str = ""
 
     # Janua Authentication
     JANUA_API_URL: str = "https://auth.madfam.io/api/v1"

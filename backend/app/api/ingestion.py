@@ -5,6 +5,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.auth import User, require_write_access
 from app.core.database import get_db
 from app.ingestion.aesthetics import AestheticsConnector, ingest_all_aesthetics
 from app.ingestion.openalex import OpenAlexConnector
@@ -22,6 +23,7 @@ async def ingest_owid_dataset(
     entity: str = "World",
     years_back: int = 20,
     db: AsyncSession = Depends(get_db),
+    _caller: User = Depends(require_write_access),
 ) -> BloomCardResponse:
     """
     Ingest a single OWID dataset.
@@ -61,6 +63,7 @@ async def ingest_owid_dataset(
 @router.post("/owid/all", response_model=list[BloomCardResponse])
 async def ingest_all_owid(
     db: AsyncSession = Depends(get_db),
+    _caller: User = Depends(require_write_access),
 ) -> list[BloomCardResponse]:
     """
     Ingest all available OWID datasets for World entity.
@@ -102,6 +105,7 @@ async def ingest_openalex_topic(
     topic_key: str = "renewable_energy",
     limit: int = 5,
     db: AsyncSession = Depends(get_db),
+    _caller: User = Depends(require_write_access),
 ) -> list[BloomCardResponse]:
     """
     Ingest scholarly works from OpenAlex.
@@ -158,6 +162,7 @@ async def ingest_aesthetic_channel(
     channel_key: str = "y2k",
     limit: int = 10,
     db: AsyncSession = Depends(get_db),
+    _caller: User = Depends(require_write_access),
 ) -> list[BloomCardResponse]:
     """
     Ingest aesthetic images from an Are.na channel.
@@ -198,6 +203,7 @@ async def ingest_aesthetic_channel(
 async def ingest_all_aesthetic_channels(
     limit_per_channel: int = 5,
     db: AsyncSession = Depends(get_db),
+    _caller: User = Depends(require_write_access),
 ) -> list[BloomCardResponse]:
     """
     Ingest images from all available aesthetic channels.

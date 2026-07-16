@@ -5,12 +5,13 @@ Provides JWT verification and user extraction for API endpoints.
 Tokens are issued by Janua (MADFAM's centralized auth service).
 """
 
+import secrets
 import time
 from collections.abc import Awaitable, Callable
 from typing import Any, cast
 
 import httpx
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from pydantic import BaseModel, ValidationError
@@ -256,6 +257,37 @@ async def get_current_user_optional(
         permissions=token_payload.permissions,
         org_id=token_payload.org_id,
     )
+
+
+async def require_write_access(
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+    x_api_key: str | None = Header(None, alias="X-API-Key"),
+) -> User:
+    """
+    FastAPI dependency guarding mutating endpoints (ingestion, interactions).
+
+    Accepts either:
+    - A service API key in the ``X-API-Key`` header matching
+      ``settings.INGEST_API_KEY`` (used by the scheduled ingestion CronJob), or
+    - A valid Janua Bearer token (any authenticated user).
+
+    Raises HTTPException 401 when neither credential is presented or valid.
+    When ``AUTH_ENABLED`` is false (local development), the Janua path falls
+    back to the standard dev mock user, so unauthenticated local calls work.
+    """
+    if (
+        settings.INGEST_API_KEY
+        and x_api_key
+        and secrets.compare_digest(x_api_key, settings.INGEST_API_KEY)
+    ):
+        return User(
+            id="ingest-service",
+            email="ingest-service@almanac.solar",
+            roles=["service"],
+            permissions=["ingest"],
+        )
+
+    return await get_current_user(credentials)
 
 
 def require_role(required_role: str) -> Callable[..., Awaitable[User]]:
