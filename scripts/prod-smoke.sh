@@ -36,4 +36,17 @@ if [[ "${docs_status}" == "200" || "${openapi_status}" == "200" ]]; then
   exit 1
 fi
 
+echo "Checking liveness endpoint"
+curl -fsS "${API_URL}/livez" -o "${tmpdir}/livez.json"
+grep -q '"status":"alive"' "${tmpdir}/livez.json"
+
+echo "Checking write endpoints reject unauthenticated callers (audit D1)"
+ingest_status="$(curl -sS -o /dev/null -w "%{http_code}" -X POST "${API_URL}/api/v1/ingest/owid")"
+track_status="$(curl -sS -o /dev/null -w "%{http_code}" -X POST -H 'Content-Type: application/json' \
+  -d '{"user_id":"smoke","card_id":"smoke","action":"view"}' "${API_URL}/api/v1/interactions/track")"
+if [[ "${ingest_status}" != "401" || "${track_status}" != "401" ]]; then
+  echo "ERROR: write endpoints are open (ingest=${ingest_status}, track=${track_status}; expected 401)" >&2
+  exit 1
+fi
+
 echo "Production smoke checks passed"

@@ -9,6 +9,14 @@ metadata:
     app.kubernetes.io/part-of: bloom-scroll
 spec:
   replicas: 2
+  # Surge-free rollout: the cluster is CPU-constrained and surge pods have
+  # blocked rollouts before (2026-06-14 break-glass rollback). Replacing one
+  # pod at a time within the existing CPU budget keeps 1/2 replicas serving.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
   selector:
     matchLabels:
       app: bloom-scroll-api
@@ -62,7 +70,10 @@ spec:
             memory: "512Mi"
           limits:
             cpu: "1000m"
-            memory: "1Gi"
+            # torch + sentence-transformers resident set sits close to the
+            # old 1Gi ceiling; headroom rules out OOM kills as a source of
+            # the 2026-05-04 restart flapping.
+            memory: "1536Mi"
         securityContext:
           privileged: false
           allowPrivilegeEscalation: false
@@ -80,8 +91,13 @@ spec:
             path: /health
             port: 8000
           periodSeconds: 10
+        # Liveness deliberately avoids /health: that endpoint performs live
+        # DB checks, so a shared-Postgres blip >= failureThreshold * period
+        # was killing healthy pods (suspected cause of the 2026-05-04
+        # 14+11 restarts/47h flapping). /livez is process-alive only;
+        # readiness (/health) still pulls pods from rotation on DB loss.
         livenessProbe:
           httpGet:
-            path: /health
+            path: /livez
             port: 8000
           periodSeconds: 30
