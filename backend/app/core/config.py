@@ -23,10 +23,6 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"
     REDIS_MAX_CONNECTIONS: int = 50
 
-    # Celery
-    CELERY_BROKER_URL: str = "redis://localhost:6379/1"
-    CELERY_RESULT_BACKEND: str = "redis://localhost:6379/2"
-
     # API Keys
     OPENALEX_EMAIL: str = ""
 
@@ -54,6 +50,14 @@ class Settings(BaseSettings):
     SELVA_BASE_URL: str = ""
     SELVA_API_KEY: str = ""
     SELVA_SCORING_MODEL: str = "selva-default"
+
+    # Observability (both dormant when unset/zero)
+    SENTRY_DSN: str = ""
+    SENTRY_TRACES_SAMPLE_RATE: float = 0.1
+
+    # App-level request backstop per client IP per minute on public GETs.
+    # In-memory per pod (2 replicas => effective limit is ~2x). 0 disables.
+    RATE_LIMIT_PER_MINUTE: int = 120
 
     class Config:
         env_file = ".env"

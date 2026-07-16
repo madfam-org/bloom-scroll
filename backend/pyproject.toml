@@ -17,7 +17,6 @@ alembic = "^1.12.1"
 asyncpg = ">=0.29,<0.32"
 psycopg2-binary = "^2.9.9"
 redis = ">=5.0.1,<9.0.0"
-celery = "^5.3.4"
 httpx = ">=0.25.1,<0.29.0"
 beautifulsoup4 = "^4.12.2"
 lxml = ">=4.9.3,<7.0.0"
@@ -32,6 +31,8 @@ python-multipart = ">=0.0.6,<0.0.31"
 python-jose = {extras = ["cryptography"], version = "^3.3.0"}
 passlib = {extras = ["bcrypt"], version = "^1.7.4"}
 aiofiles = ">=23.2.1,<26.0.0"
+sentry-sdk = {version = "^2", extras = ["fastapi"]}
+prometheus-fastapi-instrumentator = "^7"
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=7.4.3,<10.0.0"

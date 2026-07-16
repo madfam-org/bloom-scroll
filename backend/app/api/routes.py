@@ -9,6 +9,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import ingestion, interactions
+from app.core.cache import get_cached_feed, set_cached_feed
 from app.core.database import get_db
 from app.curation.bloom_algorithm import BloomAlgorithm
 from app.models.bloom_card import BloomCard
@@ -120,6 +121,16 @@ async def get_feed(
     # Adjust limit to not exceed daily cap
     effective_limit = min(limit, remaining_cards)
 
+    # Hot-feed cache: the anonymous first page (no personalization inputs)
+    # is identical for every new visitor — serve it from Redis for 60s.
+    # Best-effort only; also keeps first pages serving through a short DB
+    # blip once warm.
+    cacheable = not user_context and not exclude_ids and page == 1 and read_count == 0
+    if cacheable:
+        cached = await get_cached_feed()
+        if cached is not None and cached.get("pagination", {}).get("limit") == effective_limit:
+            return cached
+
     # Use Bloom Algorithm for serendipity scoring
     bloom = BloomAlgorithm(
         min_distance=0.3,  # Minimum distance to avoid echo chamber
@@ -226,6 +237,9 @@ async def get_feed(
                 "daily_limit": DAILY_LIMIT,
             },
         }
+
+    if cacheable and cards_data:
+        await set_cached_feed(response)
 
     return response
 
