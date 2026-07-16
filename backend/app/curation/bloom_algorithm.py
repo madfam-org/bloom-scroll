@@ -2,8 +2,9 @@
 
 import logging
 from typing import cast
+from uuid import UUID
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.analysis.processor import get_nlp_processor
@@ -49,6 +50,7 @@ class BloomAlgorithm:
         session: AsyncSession,
         user_context_ids: list[str] | None = None,
         limit: int = 20,
+        exclude_ids: list[str] | None = None,
     ) -> list[BloomCard]:
         """
         Generate a feed with serendipity scoring.
@@ -57,25 +59,52 @@ class BloomAlgorithm:
             session: Database session
             user_context_ids: IDs of recently viewed cards (last 5)
             limit: Number of cards to return
+            exclude_ids: IDs the client has already been served today;
+                these are never returned again (fixes duplicate pages)
 
         Returns:
             List of BloomCards ordered by serendipity score
         """
+        # Cards used as context are by definition already read: exclude them
+        # from candidates along with anything the client has already seen.
+        exclude_uuids = self._to_uuid_set(exclude_ids, user_context_ids)
+
         # If no user context, just return recent cards
         if not user_context_ids:
-            return await self._get_recent_cards(session, limit)
+            return await self._get_recent_cards(session, limit, exclude_uuids)
 
         # Get user context embeddings
         context_vector = await self._calculate_user_context(session, user_context_ids)
         if not context_vector or all(v == 0.0 for v in context_vector):
             logger.warning("Invalid context vector, falling back to recent cards")
-            return await self._get_recent_cards(session, limit)
+            return await self._get_recent_cards(session, limit, exclude_uuids)
 
         # Query for cards in the serendipity zone
-        cards = await self._query_serendipity_zone(session, context_vector, limit)
+        cards = await self._query_serendipity_zone(
+            session, context_vector, limit, exclude_uuids
+        )
+
+        # Top up with recent unseen cards when the serendipity zone alone
+        # cannot fill the page (small corpus, tight zone, etc.).
+        if len(cards) < limit:
+            already = exclude_uuids | {cast(UUID, card.id) for card in cards}
+            filler = await self._get_recent_cards(session, limit - len(cards), already)
+            cards.extend(filler)
 
         logger.info(f"Generated feed with {len(cards)} cards using serendipity scoring")
         return cards
+
+    @staticmethod
+    def _to_uuid_set(*id_lists: list[str] | None) -> set[UUID]:
+        """Merge string-id lists into a set of UUIDs, skipping invalid values."""
+        merged: set[UUID] = set()
+        for ids in id_lists:
+            for value in ids or []:
+                try:
+                    merged.add(UUID(value))
+                except (ValueError, AttributeError, TypeError):
+                    logger.warning(f"Skipping invalid card id in exclusion list: {value!r}")
+        return merged
 
     async def _calculate_user_context(
         self,
@@ -114,68 +143,50 @@ class BloomAlgorithm:
         session: AsyncSession,
         context_vector: list[float],
         limit: int,
+        exclude_uuids: set[UUID] | None = None,
     ) -> list[BloomCard]:
         """
         Query for cards in the serendipity zone.
 
-        Uses pgvector for efficient similarity search.
+        The distance-band filter and ideal-distance ordering run in SQL via
+        pgvector's native cosine distance, so the whole corpus is a candidate
+        (previously only the ~3x-limit most recent rows were considered and
+        distances were computed in Python).
 
         Args:
             session: Database session
             context_vector: User's context vector
             limit: Number of cards to return
+            exclude_uuids: Card ids that must not be returned
 
         Returns:
-            List of BloomCards in the serendipity zone
+            List of BloomCards in the serendipity zone, closest to the
+            zone's midpoint first
         """
-        # Convert context vector to string for pgvector
-        # pgvector uses cosine distance natively
+        distance = BloomCard.embedding.cosine_distance(context_vector)
+        ideal_distance = (self.min_distance + self.max_distance) / 2
 
-        # Query cards with pgvector cosine distance
-        # Note: We want distance between min_distance and max_distance
         stmt = (
             select(BloomCard)
             .where(
                 and_(
                     BloomCard.embedding.isnot(None),
-                    # High quality filter (if constructiveness_score exists)
-                    # For now, we'll just get all cards and filter in Python
+                    distance >= self.min_distance,
+                    distance <= self.max_distance,
                 )
             )
-            .order_by(BloomCard.created_at.desc())
-            .limit(limit * 3)  # Get more candidates for filtering
+            .order_by(func.abs(distance - ideal_distance))
+            .limit(limit)
         )
+        if exclude_uuids:
+            stmt = stmt.where(BloomCard.id.notin_(exclude_uuids))
 
         result = await session.execute(stmt)
-        all_cards = result.scalars().all()
-
-        # Filter by serendipity zone in Python
-        # (pgvector WHERE clause would be complex for range queries)
-        serendipity_cards: list[tuple[float, BloomCard]] = []
-
-        for card in all_cards:
-            card_embedding = cast(list[float] | None, card.embedding)
-            if not card_embedding:
-                continue
-
-            # Calculate distance
-            distance = self.nlp.calculate_cosine_distance(card_embedding, context_vector)
-
-            # Check if in serendipity zone
-            if self.min_distance <= distance <= self.max_distance:
-                serendipity_cards.append((distance, card))
-
-        # Sort by distance (prefer middle of serendipity zone)
-        # Ideal distance is midpoint: (min + max) / 2
-        ideal_distance = (self.min_distance + self.max_distance) / 2
-        serendipity_cards.sort(key=lambda x: abs(x[0] - ideal_distance))
-
-        # Return just the cards (without distances)
-        result_cards = [card for _, card in serendipity_cards[:limit]]
+        result_cards = list(result.scalars().all())
 
         logger.info(
-            f"Found {len(serendipity_cards)} cards in serendipity zone "
-            f"({self.min_distance} to {self.max_distance}), returning {len(result_cards)}"
+            f"Serendipity zone ({self.min_distance} to {self.max_distance}) "
+            f"returned {len(result_cards)} cards"
         )
 
         return result_cards
@@ -184,6 +195,7 @@ class BloomAlgorithm:
         self,
         session: AsyncSession,
         limit: int,
+        exclude_uuids: set[UUID] | None = None,
     ) -> list[BloomCard]:
         """
         Get recent cards (fallback when no user context).
@@ -191,11 +203,14 @@ class BloomAlgorithm:
         Args:
             session: Database session
             limit: Number of cards to return
+            exclude_uuids: Card ids that must not be returned
 
         Returns:
             List of recent BloomCards
         """
         stmt = select(BloomCard).order_by(BloomCard.created_at.desc()).limit(limit)
+        if exclude_uuids:
+            stmt = stmt.where(BloomCard.id.notin_(exclude_uuids))
         result = await session.execute(stmt)
         return list(result.scalars().all())
 

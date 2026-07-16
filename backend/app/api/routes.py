@@ -5,7 +5,7 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import ingestion, interactions
@@ -31,6 +31,10 @@ async def get_feed(
     user_context: list[str] | None = Query(
         None,
         description="IDs of recently viewed cards (for serendipity scoring)"
+    ),
+    exclude_ids: list[str] | None = Query(
+        None,
+        description="IDs of cards already served today; they will not be returned again"
     ),
     page: int = Query(1, ge=1, description="Page number (1-indexed)"),
     read_count: int = Query(0, ge=0, description="Number of cards already read today"),
@@ -101,6 +105,18 @@ async def get_feed(
                 detail=f"Invalid UUID format in user_context: {str(e)}"
             )
 
+    # Validate exclude_ids UUIDs if provided
+    if exclude_ids:
+        try:
+            for card_id in exclude_ids:
+                UUID(card_id)
+        except ValueError as e:
+            logger.warning(f"Invalid UUID in exclude_ids: {e}")
+            raise HTTPException(
+                status_code=422,
+                detail=f"Invalid UUID format in exclude_ids: {str(e)}"
+            )
+
     # Adjust limit to not exceed daily cap
     effective_limit = min(limit, remaining_cards)
 
@@ -110,12 +126,16 @@ async def get_feed(
         max_distance=0.8,  # Maximum distance to avoid irrelevance
     )
 
+    # Everything the client has already seen today: never serve it again.
+    seen_ids = {*(exclude_ids or []), *(user_context or [])}
+
     # Try serendipity algorithm, fall back to recent cards on failure
     try:
         cards = await bloom.generate_feed(
             session=db,
             user_context_ids=user_context,
             limit=effective_limit,
+            exclude_ids=list(seen_ids),
         )
 
         # Calculate context vector for reason tag generation
@@ -129,11 +149,16 @@ async def get_feed(
         # Graceful degradation: Return recent cards if algorithm fails
         logger.error(f"Bloom algorithm failed, falling back to recent cards: {e}")
 
-        result = await db.execute(
+        fallback_stmt = (
             select(BloomCard)
             .order_by(BloomCard.created_at.desc())
             .limit(effective_limit)
         )
+        if seen_ids:
+            fallback_stmt = fallback_stmt.where(
+                BloomCard.id.notin_({UUID(v) for v in seen_ids})
+            )
+        result = await db.execute(fallback_stmt)
         cards = list(result.scalars().all())
         context_vector = None
 
@@ -157,7 +182,23 @@ async def get_feed(
 
     # Calculate new read count
     new_read_count = read_count + len(cards_data)
-    has_next_page = new_read_count < DAILY_LIMIT
+
+    # A next page exists only when unseen cards actually remain AND the
+    # daily limit has not been reached. Previously this was derived from
+    # read_count alone, which advertised pages that re-served duplicates.
+    unseen_remaining = 0
+    try:
+        served_ids = seen_ids | {card["id"] for card in cards_data}
+        count_stmt = select(func.count()).select_from(BloomCard)
+        if served_ids:
+            count_stmt = count_stmt.where(
+                BloomCard.id.notin_({UUID(v) for v in served_ids})
+            )
+        unseen_remaining = (await db.execute(count_stmt)).scalar() or 0
+    except Exception as e:
+        logger.error(f"Unseen-card count failed, assuming none remain: {e}")
+
+    has_next_page = unseen_remaining > 0 and new_read_count < DAILY_LIMIT
 
     response: dict[str, Any] = {
         "cards": cards_data,

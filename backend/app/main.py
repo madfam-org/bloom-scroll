@@ -100,6 +100,20 @@ async def root() -> dict[str, str]:
     }
 
 
+@app.get("/livez")
+async def liveness_check() -> dict[str, str]:
+    """
+    Process-liveness endpoint for the Kubernetes liveness probe.
+
+    Deliberately does NOT touch the database: a shared-Postgres blip must
+    degrade readiness (pods leave rotation via /health) without the kubelet
+    killing otherwise-healthy processes. Pointing liveness at the DB-backed
+    /health was the likely cause of the 2026-05-04 restart flapping
+    (14+11 restarts/47h).
+    """
+    return {"status": "alive"}
+
+
 @app.get("/health")
 async def health_check(db: AsyncSession = Depends(get_db)) -> JSONResponse:
     """
@@ -161,6 +175,28 @@ async def health_check(db: AsyncSession = Depends(get_db)) -> JSONResponse:
     except Exception as e:
         logger.error(f"Card count check failed: {e}")
         health["checks"]["cards"] = {"status": "error", "message": str(e)}
+
+    # Check 4: Content freshness (informational only — a stale corpus is a
+    # product problem for monitors to alert on, not a reason to pull pods
+    # out of rotation, so it never flips overall status to unhealthy).
+    try:
+        result = await db.execute(text("SELECT MAX(created_at) FROM bloom_cards"))
+        newest = result.scalar()
+        if newest is None:
+            health["checks"]["freshness"] = {
+                "status": "stale",
+                "message": "No cards in database",
+            }
+        else:
+            age_hours = (datetime.utcnow() - newest).total_seconds() / 3600
+            health["checks"]["freshness"] = {
+                "status": "ok" if age_hours <= 48 else "stale",
+                "message": f"Newest card is {age_hours:.1f}h old",
+                "newest_card_at": newest.isoformat(),
+            }
+    except Exception as e:
+        logger.warning(f"Freshness check failed: {e}")
+        health["checks"]["freshness"] = {"status": "unknown", "message": str(e)}
 
     # Return appropriate status code
     status_code = 200 if health["status"] == "healthy" else 503
