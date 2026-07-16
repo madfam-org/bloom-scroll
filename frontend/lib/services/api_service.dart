@@ -92,6 +92,7 @@ class ApiService {
     int readCount = 0,
     int limit = 10,
     List<String>? userContext,
+    List<String>? excludeIds,
   }) async {
     try {
       // Explicit Map<String, dynamic> so that adding List<String>
@@ -106,6 +107,12 @@ class ApiService {
       // Add user context if provided (for serendipity scoring)
       if (userContext != null && userContext.isNotEmpty) {
         queryParams['user_context'] = userContext;
+      }
+
+      // Cards already served/read today: the server never returns these
+      // again (duplicate-page fix, 2026-07-16 audit defect D2).
+      if (excludeIds != null && excludeIds.isNotEmpty) {
+        queryParams['exclude_ids'] = excludeIds;
       }
 
       final response = await _dio.get(

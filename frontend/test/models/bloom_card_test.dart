@@ -29,10 +29,36 @@ void main() {
 
       expect(card.isOwid, isTrue);
       expect(card.meta?.constructivenessScore, 88);
+      // No score_provenance -> gauges must not render (defect D5).
+      expect(card.meta?.hasMeasuredScores, isFalse);
       expect(card.blindspotTags, ['global-south']);
       expect(card.owidData?.dataPoints.first.x, 2020);
       expect(card.owidData?.dataPoints.last.y, 73);
       expect(card.meta?.reasonText, contains('Perspective Shift'));
+    });
+
+    test('null scores stay null and provenance flags measured cards', () {
+      final unmeasured = PerspectiveMeta.fromJson({
+        'bias_score': null,
+        'constructiveness_score': null,
+        'blindspot_tags': [],
+        'score_provenance': null,
+        'reason_tag': 'RECENT',
+      });
+      expect(unmeasured.biasScore, isNull);
+      expect(unmeasured.constructivenessScore, isNull);
+      expect(unmeasured.hasMeasuredScores, isFalse);
+
+      final measured = PerspectiveMeta.fromJson({
+        'bias_score': 0.25,
+        'constructiveness_score': 88,
+        'blindspot_tags': ['climate'],
+        'score_provenance': 'selva/test-model@1',
+        'reason_tag': 'EXPLORE',
+      });
+      expect(measured.biasScore, 0.25);
+      expect(measured.hasMeasuredScores, isTrue);
+      expect(measured.scoreProvenance, 'selva/test-model@1');
     });
 
     test('returns safe defaults for sparse aesthetic payloads', () {

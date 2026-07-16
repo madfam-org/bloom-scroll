@@ -73,12 +73,14 @@ class FeedController extends StateNotifier<FeedState> {
       final readCount = await _storageService.getReadCount();
       final readCardIds = await _storageService.getReadCardIds();
 
-      // Fetch first page
+      // Fetch first page. Everything already read today is excluded so the
+      // server can never hand back duplicates (defect D2, 2026-07-16 audit).
       final response = await _apiService.getFeed(
         page: 1,
         readCount: readCount,
         limit: 10,
         userContext: readCardIds.length > 5 ? readCardIds.sublist(readCardIds.length - 5) : readCardIds,
+        excludeIds: readCardIds,
       );
 
       state = FeedState(
@@ -107,16 +109,29 @@ class FeedController extends StateNotifier<FeedState> {
       final readCount = await _storageService.getReadCount();
       final readCardIds = await _storageService.getReadCardIds();
 
+      // Exclude both cards read today and cards already on screen but not
+      // yet read, so the next page is guaranteed fresh (defect D2).
+      final excludeIds = <String>{
+        ...readCardIds,
+        ...state.cards.map((card) => card.id),
+      }.toList();
+
       final response = await _apiService.getFeed(
         page: state.currentPage + 1,
         readCount: readCount,
         limit: 10,
         userContext: readCardIds.length > 5 ? readCardIds.sublist(readCardIds.length - 5) : readCardIds,
+        excludeIds: excludeIds,
       );
 
-      // Append new cards to existing list
+      // Append new cards, dropping anything the server still duplicated
+      // (defensive: old servers ignore exclude_ids).
+      final knownIds = state.cards.map((card) => card.id).toSet();
+      final freshCards =
+          response.cards.where((card) => !knownIds.contains(card.id)).toList();
+
       state = FeedState(
-        cards: [...state.cards, ...response.cards],
+        cards: [...state.cards, ...freshCards],
         pagination: response.pagination,
         completion: response.completion,
         isLoading: false,
