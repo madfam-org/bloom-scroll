@@ -16,7 +16,7 @@ from collections.abc import Sequence
 
 import sqlalchemy as sa
 
-from alembic import op
+from alembic import context, op
 
 # revision identifiers, used by Alembic.
 revision: str = '003'
@@ -27,19 +27,28 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     """Add score_provenance column and clear unmeasured legacy scores."""
-    op.add_column(
-        'bloom_cards',
-        sa.Column(
-            'score_provenance',
-            sa.String(100),
-            nullable=True,
-            comment=(
-                'Which pipeline produced bias/constructiveness/blindspot '
-                'values, e.g. selva/<model>@<version>. NULL means the scores '
-                'were not machine-measured and must not be presented to users.'
+    # Existence guard: adopted pre-alembic databases replay this migration
+    # (see app/core/migrations.py) and may already carry the column when it
+    # was added out-of-band. Offline mode (--sql) emits the full DDL.
+    column_exists = False
+    if not context.is_offline_mode():
+        columns = sa.inspect(op.get_bind()).get_columns('bloom_cards')
+        column_exists = any(c['name'] == 'score_provenance' for c in columns)
+
+    if not column_exists:
+        op.add_column(
+            'bloom_cards',
+            sa.Column(
+                'score_provenance',
+                sa.String(100),
+                nullable=True,
+                comment=(
+                    'Which pipeline produced bias/constructiveness/blindspot '
+                    'values, e.g. selva/<model>@<version>. NULL means the scores '
+                    'were not machine-measured and must not be presented to users.'
+                ),
             ),
-        ),
-    )
+        )
 
     # Every pre-existing score predates any scoring pipeline, so none of them
     # were measured: clear them rather than grandfathering fabricated values.
