@@ -56,6 +56,9 @@ spec:
         - sh
         - -c
         - |
+          # Fail loudly: without -e a failed alembic step still exited 0,
+          # masking an unapplied migration (2026-07-16 feed outage).
+          set -eu
           # Enable required PostgreSQL extensions
           python -c "
           import sqlalchemy, os

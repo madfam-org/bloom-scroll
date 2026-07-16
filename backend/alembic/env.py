@@ -19,8 +19,20 @@ from app.models.bloom_card import BloomCard  # noqa: F401
 # this is the Alembic Config object
 config = context.config
 
-# Override sqlalchemy.url with value from settings
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+# Override sqlalchemy.url with value from settings.
+# Force a sync driver: the production secret may carry an async
+# (+asyncpg) or legacy (postgres://) URL, and alembic runs sync psycopg2.
+# Passing an async URL here made `alembic upgrade head` fail inside the
+# db-init job — silently, because the job script lacked `set -e` — which
+# left migration 003 unapplied and broke every ORM query in production
+# on 2026-07-16.
+_sync_url = (
+    settings.DATABASE_URL
+    .replace("postgresql+asyncpg://", "postgresql://")
+    .replace("postgresql+psycopg://", "postgresql://")
+    .replace("postgres://", "postgresql://")
+)
+config.set_main_option("sqlalchemy.url", _sync_url)
 
 # Interpret the config file for Python logging.
 if config.config_file_name is not None:

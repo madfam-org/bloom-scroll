@@ -44,12 +44,40 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def _run_migrations() -> None:
+    """Apply any pending alembic migrations (sync; run via to_thread)."""
+    from pathlib import Path
+
+    from alembic.config import Config as AlembicConfig
+
+    from alembic import command
+
+    ini_path = Path(__file__).resolve().parents[1] / "alembic.ini"
+    command.upgrade(AlembicConfig(str(ini_path)), "head")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Handle startup and shutdown events."""
     # Startup: Initialize database connections, load models, etc.
     logger.info("🌱 Bloom Scroll starting up...")
     logger.info(f"Environment: {app.debug and 'development' or 'production'}")
+
+    # Safety net for schema drift: the db-init PreSync job silently
+    # swallowed a failed `alembic upgrade head` for months (no set -e +
+    # async URL passed to sync alembic), which left migration 003
+    # unapplied and 503'd every ORM query in production on 2026-07-16.
+    # Non-fatal: a transient DB blip at boot must not crash-loop pods.
+    import asyncio
+
+    try:
+        await asyncio.to_thread(_run_migrations)
+        logger.info("✅ Database schema is at alembic head")
+    except Exception:
+        logger.exception(
+            "❌ Startup migration failed — continuing, but the schema may be behind"
+        )
+
     yield
     # Shutdown: Cleanup resources
     logger.info("🌸 Bloom Scroll shutting down...")
