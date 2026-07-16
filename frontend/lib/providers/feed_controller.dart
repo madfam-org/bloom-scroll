@@ -17,6 +17,10 @@ class FeedState {
   final String? error;
   final int currentPage;
 
+  /// Mini-Bloom mode (PRD §4.1): a deliberately tiny session. When set,
+  /// the session is capped at this many cards and never paginates.
+  final int? sessionLimit;
+
   FeedState({
     this.cards = const [],
     this.pagination,
@@ -24,6 +28,7 @@ class FeedState {
     this.isLoading = false,
     this.error,
     this.currentPage = 1,
+    this.sessionLimit,
   });
 
   FeedState copyWith({
@@ -41,11 +46,18 @@ class FeedState {
       isLoading: isLoading ?? this.isLoading,
       error: error,
       currentPage: currentPage ?? this.currentPage,
+      sessionLimit: sessionLimit,
     );
   }
 
   bool get isComplete => completion != null;
-  bool get hasNextPage => pagination?.hasNextPage ?? false;
+  bool get isMiniBloom => sessionLimit != null;
+  bool get isMiniSessionDone =>
+      sessionLimit != null && cards.length >= sessionLimit!;
+  bool get hasNextPage {
+    if (isMiniSessionDone) return false;
+    return pagination?.hasNextPage ?? false;
+  }
 }
 
 /// Feed controller with pagination and read state
@@ -62,11 +74,18 @@ class FeedController extends StateNotifier<FeedState> {
     await loadFeed();
   }
 
-  /// Load feed (first page or refresh)
-  Future<void> loadFeed({bool refresh = false}) async {
+  /// Load feed (first page or refresh). A non-null [sessionLimit] starts
+  /// a Mini-Bloom session capped at that many cards (PRD §4.1).
+  Future<void> loadFeed({bool refresh = false, int? sessionLimit}) async {
     if (state.isLoading) return;
 
-    state = state.copyWith(isLoading: true, error: null);
+    state = FeedState(
+      cards: state.cards,
+      pagination: state.pagination,
+      isLoading: true,
+      currentPage: state.currentPage,
+      sessionLimit: sessionLimit,
+    );
 
     try {
       // Get current read count from storage
@@ -78,17 +97,20 @@ class FeedController extends StateNotifier<FeedState> {
       final response = await _apiService.getFeed(
         page: 1,
         readCount: readCount,
-        limit: 10,
+        limit: sessionLimit ?? 10,
         userContext: readCardIds.length > 5 ? readCardIds.sublist(readCardIds.length - 5) : readCardIds,
         excludeIds: readCardIds,
       );
 
       state = FeedState(
-        cards: response.cards,
+        cards: sessionLimit != null
+            ? response.cards.take(sessionLimit).toList()
+            : response.cards,
         pagination: response.pagination,
         completion: response.completion,
         isLoading: false,
         currentPage: 1,
+        sessionLimit: sessionLimit,
       );
     } catch (e) {
       debugPrint('Error loading feed: $e');
@@ -99,9 +121,10 @@ class FeedController extends StateNotifier<FeedState> {
     }
   }
 
-  /// Load next page (pagination)
+  /// Load next page (pagination). Mini-Bloom sessions never paginate.
   Future<void> loadNextPage() async {
     if (state.isLoading || !state.hasNextPage || state.isComplete) return;
+    if (state.isMiniBloom) return;
 
     state = state.copyWith(isLoading: true);
 
@@ -167,6 +190,16 @@ class FeedController extends StateNotifier<FeedState> {
 
   /// Refresh feed (clear and reload)
   Future<void> refresh() async {
+    await loadFeed(refresh: true, sessionLimit: state.sessionLimit);
+  }
+
+  /// Start a Mini-Bloom session: 5 cards, one sitting, no pagination.
+  Future<void> startMiniBloom() async {
+    await loadFeed(refresh: true, sessionLimit: 5);
+  }
+
+  /// Return to the regular finite feed.
+  Future<void> exitMiniBloom() async {
     await loadFeed(refresh: true);
   }
 }

@@ -4,6 +4,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+import 'package:shimmer/shimmer.dart';
 import '../models/bloom_card.dart';
 import '../providers/feed_controller.dart';
 import '../widgets/owid_card.dart';
@@ -69,6 +70,24 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                 ),
               ),
             ),
+          // Mini-Bloom (PRD §4.1): a 5-card coffee-break session.
+          IconButton(
+            icon: Icon(
+              feedState.isMiniBloom ? Icons.local_florist : Icons.coffee,
+              color: feedState.isMiniBloom ? BloomColors.growthGreen : null,
+            ),
+            onPressed: () {
+              final controller = ref.read(feedControllerProvider.notifier);
+              if (feedState.isMiniBloom) {
+                controller.exitMiniBloom();
+              } else {
+                controller.startMiniBloom();
+              }
+            },
+            tooltip: feedState.isMiniBloom
+                ? 'Back to the full garden'
+                : 'Mini-Bloom: 5 cards, one sitting',
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
@@ -83,13 +102,10 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
   }
 
   Widget _buildBody(BuildContext context, FeedState feedState) {
-    // Loading state (initial load)
+    // Loading state (initial load): skeleton cards instead of a spinner
+    // (PRD §4.1 — gray-box placeholders reduce perceived wait).
     if (feedState.isLoading && feedState.cards.isEmpty) {
-      return const Center(
-        child: CircularProgressIndicator(
-          color: BloomColors.growthGreen,
-        ),
-      );
+      return _buildSkeletonFeed(context);
     }
 
     // Error state
@@ -200,6 +216,53 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
   }
 
   Widget _buildEndMarker(BuildContext context, FeedState feedState) {
+    // Mini-Bloom session complete: a smaller celebration than the daily one.
+    if (feedState.isMiniSessionDone && !feedState.isComplete) {
+      return Container(
+        margin: const EdgeInsets.all(BloomSpacing.lg),
+        padding: const EdgeInsets.all(BloomSpacing.xl),
+        decoration: BoxDecoration(
+          color: BloomColors.primaryBg,
+          borderRadius: BloomSpacing.cardBorderRadius,
+          border: Border.all(
+            color: BloomColors.growthGreen,
+            width: BloomSpacing.borderWidth,
+          ),
+        ),
+        child: Column(
+          children: [
+            const Icon(
+              Icons.coffee,
+              size: 48,
+              color: BloomColors.growthGreen,
+            ),
+            const SizedBox(height: BloomSpacing.md),
+            Text(
+              'A mini bloom, complete. \u2615',
+              style: BloomTypography.h3.copyWith(
+                color: BloomColors.growthGreen,
+              ),
+            ),
+            const SizedBox(height: BloomSpacing.sm),
+            Text(
+              'Five seeds planted. Enjoy the rest of your break.',
+              style: BloomTypography.bodyMedium.copyWith(
+                color: BloomColors.inkSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: BloomSpacing.md),
+            TextButton(
+              onPressed: () {
+                ref.read(feedControllerProvider.notifier).exitMiniBloom();
+              },
+              child: const Text('Return to the full garden'),
+            ),
+          ],
+        ),
+      );
+    }
+
     if (!feedState.hasNextPage && !feedState.isComplete) {
       return Container(
         margin: const EdgeInsets.all(BloomSpacing.lg),
@@ -296,6 +359,31 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  /// Shimmering masonry of gray boxes shown during the initial load.
+  Widget _buildSkeletonFeed(BuildContext context) {
+    const heights = [180.0, 120.0, 140.0, 200.0, 110.0, 160.0];
+    return Shimmer.fromColors(
+      baseColor: BloomColors.skeletonBg,
+      highlightColor: BloomColors.primaryBg,
+      child: MasonryGridView.count(
+        padding: const EdgeInsets.all(BloomSpacing.screenPadding),
+        crossAxisCount: 2,
+        mainAxisSpacing: BloomSpacing.md,
+        crossAxisSpacing: BloomSpacing.md,
+        itemCount: heights.length,
+        itemBuilder: (context, index) {
+          return Container(
+            height: heights[index % heights.length],
+            decoration: BoxDecoration(
+              color: BloomColors.skeletonBg,
+              borderRadius: BloomSpacing.cardBorderRadius,
+            ),
+          );
+        },
       ),
     );
   }
