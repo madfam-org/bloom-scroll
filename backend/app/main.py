@@ -44,16 +44,34 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def _run_migrations() -> None:
-    """Apply any pending alembic migrations (sync; run via to_thread)."""
+# Last startup-migration failure, surfaced via /health checks.migrations so
+# schema drift is observable from outside the cluster (the 2026-07-16 feed
+# outage was undiagnosable externally: pods logged the failure, nothing
+# exposed it).
+_STARTUP_MIGRATION_ERROR: str | None = None
+
+
+def _alembic_config() -> Any:
     from pathlib import Path
 
     from alembic.config import Config as AlembicConfig
 
+    ini_path = Path(__file__).resolve().parents[1] / "alembic.ini"
+    return AlembicConfig(str(ini_path))
+
+
+def _run_migrations() -> None:
+    """Apply any pending alembic migrations (sync; run via to_thread)."""
     from alembic import command
 
-    ini_path = Path(__file__).resolve().parents[1] / "alembic.ini"
-    command.upgrade(AlembicConfig(str(ini_path)), "head")
+    command.upgrade(_alembic_config(), "head")
+
+
+def _alembic_head() -> str | None:
+    """The newest migration revision shipped in this image."""
+    from alembic.script import ScriptDirectory
+
+    return ScriptDirectory.from_config(_alembic_config()).get_current_head()
 
 
 @asynccontextmanager
@@ -70,10 +88,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Non-fatal: a transient DB blip at boot must not crash-loop pods.
     import asyncio
 
+    global _STARTUP_MIGRATION_ERROR
     try:
         await asyncio.to_thread(_run_migrations)
+        _STARTUP_MIGRATION_ERROR = None
         logger.info("✅ Database schema is at alembic head")
-    except Exception:
+    except Exception as e:
+        _STARTUP_MIGRATION_ERROR = f"{type(e).__name__}: {e}"
         logger.exception(
             "❌ Startup migration failed — continuing, but the schema may be behind"
         )
@@ -300,6 +321,28 @@ async def health_check(db: AsyncSession = Depends(get_db)) -> JSONResponse:
     except Exception as e:
         logger.warning(f"Freshness check failed: {e}")
         health["checks"]["freshness"] = {"status": "unknown", "message": str(e)}
+
+    # Check 5: schema state. The 2026-07-16 outage (unapplied migration ->
+    # every ORM query 503s) was invisible: /health stayed green because it
+    # only uses raw SQL. Report DB revision vs the image's alembic head so
+    # monitors catch schema drift. Informational: does not flip overall
+    # status (restarting pods cannot fix a behind schema).
+    try:
+        result = await db.execute(text("SELECT version_num FROM alembic_version"))
+        db_revision = result.scalar()
+        head_revision = _alembic_head()
+        schema_check: dict[str, Any] = {
+            "status": "ok" if db_revision == head_revision else "behind",
+            "db_revision": db_revision,
+            "head_revision": head_revision,
+        }
+        if _STARTUP_MIGRATION_ERROR:
+            schema_check["status"] = "error"
+            schema_check["startup_migration_error"] = _STARTUP_MIGRATION_ERROR
+        health["checks"]["migrations"] = schema_check
+    except Exception as e:
+        logger.warning(f"Migration state check failed: {e}")
+        health["checks"]["migrations"] = {"status": "unknown", "message": str(e)}
 
     # Return appropriate status code
     status_code = 200 if health["status"] == "healthy" else 503
