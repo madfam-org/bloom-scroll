@@ -183,6 +183,34 @@ next deploy + `INGEST_API_KEY` secret rotation:
   (middleware reads `CORS_ALLOWED_ORIGINS`); unused `pymilvus` dependency
   dropped from `pyproject.toml`/lock (obsoletes Dependabot #95).
 
+Second wave, same day (Phases 2-4 of the plan):
+
+- **Perspective Engine v1.** `app/analysis/scoring.py` scores cards through
+  Selva's OpenAI-compatible API at ingest, stamping `score_provenance`;
+  dormant until `SELVA_BASE_URL` is set in secrets. `/api/v1/perspective/{id}`
+  is real now: provenance-gated scores, nearest-OWID data context, topical
+  cluster summary, source attribution.
+- **OWID ingestion was broken and is fixed.** Every configured owid-datasets
+  GitHub path 404s (verified 2026-07-16) — production OWID ingestion could
+  never have worked. Rewritten against `https://ourworldindata.org/grapher/
+  {slug}.csv` and expanded to 6 datasets, each verified fetching live data.
+- **Two new connectors.** Neocities (INDIE_WEB; browse discovery + official
+  info API) and Tropedia (NARRATIVE; All The Tropes is Miraheze-bot-blocked
+  from datacenter IPs). 5 of 6 PRD content types now real; My-MOOC deferred
+  pending a scraping-policy decision.
+- **Idempotent ingestion.** All connectors dedupe by `original_url` and
+  return existing cards, so the daily CronJob neither duplicates nor
+  false-fails; CronJob now covers all 5 sources.
+- **Feed quality.** Robin Hood source interleaving; anonymous first page
+  cached in Redis for 60s; per-IP GET rate limiting (120/min default).
+- **Observability.** Sentry SDK wired (dormant until `SENTRY_DSN`);
+  Prometheus `/metrics` (refuses Cloudflare-forwarded requests) +
+  `allow-monitoring-scrape` NetworkPolicy; ServiceMonitor manifest in
+  internal-devops `grafana/service-monitors/bloom-scroll-api.yaml`.
+- **Celery scaffold removed** (dep, worker.py, compose services, settings).
+- **Frontend.** Mini-Bloom 5-card sessions (AppBar toggle, own completion
+  state) and shimmer skeleton loading replace the spinner.
+
 Operator follow-ups required to activate all of the above in production:
 
 1. Add `INGEST_API_KEY` to the `bloom-scroll-secrets` K8s secret
@@ -191,6 +219,11 @@ Operator follow-ups required to activate all of the above in production:
 2. Deploy (migration 003 clears legacy fabricated scores at PreSync).
 3. Optionally trigger the CronJob once manually to refresh content
    immediately instead of waiting for 05:10 UTC.
+4. To activate perspective scoring: set `SELVA_BASE_URL` (+ key/model) in
+   the secret once Selva access is provisioned.
+5. To activate error telemetry: set `SENTRY_DSN` in the secret.
+6. Apply `internal-devops/grafana/service-monitors/bloom-scroll-api.yaml`
+   to the monitoring namespace after deploy.
 
 ## Recommended Next Work
 

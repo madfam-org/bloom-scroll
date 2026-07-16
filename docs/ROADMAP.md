@@ -379,6 +379,23 @@ are only emitted/displayed when `score_provenance` is set — 2026-07-16 audit D
    not the 50 most recent rows)
 8. ✅ Removed unused `pymilvus` dependency and dead `BACKEND_CORS_ORIGINS` setting
 
+### Completed 2026-07-16 (second wave: Phases 2-4)
+1. ✅ Perspective Engine v1: Selva scoring service (dormant until
+   `SELVA_BASE_URL` set), provenance stamping, wired into all connectors
+2. ✅ Real `/api/v1/perspective/{card_id}`: measured scores, nearest-OWID
+   data context, topical-cluster diversity signal, source attribution
+3. ✅ OWID connector fixed (old GitHub CSV paths 404 — switched to the
+   grapher CSV API) and expanded 3 → 6 verified datasets
+4. ✅ Neocities (INDIE_WEB) + Tropedia (NARRATIVE) connectors, live-tested;
+   5 of 6 PRD content types now have working connectors (My-MOOC remains,
+   pending a scraping-policy decision)
+5. ✅ URL dedup across all connectors (idempotent daily re-ingestion)
+6. ✅ Robin Hood source interleave in the feed
+7. ✅ Mini-Bloom 5-card sessions + shimmer skeleton loading (frontend)
+8. ✅ Redis hot-feed cache, per-IP rate limiting, Sentry wiring (dormant
+   until DSN set), Prometheus `/metrics` + ServiceMonitor + NetworkPolicy
+9. ✅ Celery scaffold removed (CronJob is the scheduler)
+
 ### Immediate (Week 1)
 1. ✅ Complete STORY-007 implementation
 2. ✅ Update all documentation
