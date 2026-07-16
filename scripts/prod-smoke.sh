@@ -20,6 +20,20 @@ echo "Checking finite-feed completion response"
 curl -fsS "${API_URL}/api/v1/feed?read_count=20" -o "${tmpdir}/completion.json"
 grep -q '"message":"The Garden is Watered."' "${tmpdir}/completion.json"
 
+# The completion path above returns early without touching the database, so
+# it stayed green through the 2026-07-16 feed outage. Exercise the real
+# DB-backed feed path too.
+echo "Checking feed serves the DB-backed path"
+curl -fsS "${API_URL}/api/v1/feed?limit=1" -o "${tmpdir}/feed.json"
+grep -q '"cards"' "${tmpdir}/feed.json"
+
+echo "Checking schema is at alembic head"
+curl -fsS "${API_URL}/health" -o "${tmpdir}/health2.json"
+python3 -c "import json,sys; d=json.load(open('${tmpdir}/health2.json')); sys.exit(0 if d['checks'].get('migrations',{}).get('status')=='ok' else 1)" || {
+  echo "ERROR: schema is not at alembic head (see /health checks.migrations)" >&2
+  exit 1
+}
+
 echo "Checking production bundle API base"
 curl -fsS "${WEB_URL}/main.dart.js" -o "${tmpdir}/main.dart.js"
 grep -q "https://api.almanac.solar/api/v1" "${tmpdir}/main.dart.js"
