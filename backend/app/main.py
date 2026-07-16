@@ -51,29 +51,6 @@ logger = logging.getLogger(__name__)
 _STARTUP_MIGRATION_ERROR: str | None = None
 
 
-def _alembic_config() -> Any:
-    from pathlib import Path
-
-    from alembic.config import Config as AlembicConfig
-
-    ini_path = Path(__file__).resolve().parents[1] / "alembic.ini"
-    return AlembicConfig(str(ini_path))
-
-
-def _run_migrations() -> None:
-    """Apply any pending alembic migrations (sync; run via to_thread)."""
-    from alembic import command
-
-    command.upgrade(_alembic_config(), "head")
-
-
-def _alembic_head() -> str | None:
-    """The newest migration revision shipped in this image."""
-    from alembic.script import ScriptDirectory
-
-    return ScriptDirectory.from_config(_alembic_config()).get_current_head()
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Handle startup and shutdown events."""
@@ -88,9 +65,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Non-fatal: a transient DB blip at boot must not crash-loop pods.
     import asyncio
 
+    from app.core.migrations import ensure_schema
+
     global _STARTUP_MIGRATION_ERROR
     try:
-        await asyncio.to_thread(_run_migrations)
+        await asyncio.to_thread(ensure_schema)
         _STARTUP_MIGRATION_ERROR = None
         logger.info("✅ Database schema is at alembic head")
     except Exception as e:
@@ -328,9 +307,11 @@ async def health_check(db: AsyncSession = Depends(get_db)) -> JSONResponse:
     # monitors catch schema drift. Informational: does not flip overall
     # status (restarting pods cannot fix a behind schema).
     try:
+        from app.core.migrations import alembic_head
+
         result = await db.execute(text("SELECT version_num FROM alembic_version"))
         db_revision = result.scalar()
-        head_revision = _alembic_head()
+        head_revision = alembic_head()
         schema_check: dict[str, Any] = {
             "status": "ok" if db_revision == head_revision else "behind",
             "db_revision": db_revision,

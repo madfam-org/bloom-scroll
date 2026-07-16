@@ -70,8 +70,10 @@ spec:
               conn.commit()
           print('Extensions enabled: uuid-ossp, vector, btree_gin')
           "
-          # Run Alembic migrations
-          alembic upgrade head
+          # Converge schema to alembic head. Adoption-aware: the prod DB
+          # predates alembic tracking, so a raw upgrade-to-head dies on
+          # DuplicateTable (2026-07-16 sync failures).
+          python -m app.core.migrations
           echo "Database initialization complete"
         resources:
           requests:

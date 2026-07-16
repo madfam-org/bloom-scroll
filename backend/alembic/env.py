@@ -23,8 +23,8 @@ from sqlalchemy import create_engine, pool
 from alembic import context
 
 # Import settings
-from app.core.config import settings
 from app.core.database import Base
+from app.core.migrations import sync_database_url
 
 # Import all models so Alembic can detect them
 from app.models.bloom_card import BloomCard  # noqa: F401
@@ -40,24 +40,10 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 
-def _sync_database_url() -> str:
-    """Settings URL normalized to a sync psycopg2 form.
-
-    Never feed this to ``config.set_main_option`` — configparser
-    interpolation chokes on ``%`` in URL-encoded passwords.
-    """
-    return (
-        settings.DATABASE_URL
-        .replace("postgresql+asyncpg://", "postgresql://")
-        .replace("postgresql+psycopg://", "postgresql://")
-        .replace("postgres://", "postgresql://")
-    )
-
-
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode (emit SQL, no DBAPI needed)."""
     context.configure(
-        url=_sync_database_url(),
+        url=sync_database_url(),
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
@@ -69,7 +55,7 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode over a plain sync engine."""
-    connectable = create_engine(_sync_database_url(), poolclass=pool.NullPool)
+    connectable = create_engine(sync_database_url(), poolclass=pool.NullPool)
 
     with connectable.connect() as connection:
         context.configure(connection=connection, target_metadata=target_metadata)
