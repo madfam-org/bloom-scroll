@@ -33,6 +33,8 @@ def _enforce_auth(monkeypatch: pytest.MonkeyPatch) -> None:
         "/api/v1/ingest/openalex",
         "/api/v1/ingest/aesthetics",
         "/api/v1/ingest/aesthetics/all",
+        "/api/v1/ingest/neocities",
+        "/api/v1/ingest/narrative",
     ],
 )
 async def test_ingest_posts_require_auth(client: AsyncClient, path: str) -> None:

@@ -164,6 +164,9 @@ async def get_feed(
 
         logger.warning(f"Fallback: Returned {len(cards)} recent cards")
 
+    # "Robin Hood" visual rhythm: avoid same-source neighbors (PRD §3.3).
+    cards = BloomAlgorithm.interleave_sources(cards)
+
     # Convert cards to dict with perspective metadata
     cards_data = []
     for card in cards:
@@ -228,15 +231,103 @@ async def get_feed(
 
 
 @router.get("/perspective/{card_id}")
-async def get_perspective(card_id: str) -> dict[str, str]:
+async def get_perspective(
+    card_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
     """
-    Get perspective overlay for a specific card.
+    Get the perspective dashboard for a specific card (PRD §4.2).
 
-    Includes:
-    - Bias classification scores
-    - Blindspot detection
-    - Related data context
+    Returns measured scores only (score_provenance gate, audit D5), the
+    nearest OWID data card as "The Data Layer" context, a topical-cluster
+    summary as a source-diversity signal, and source attribution.
     """
-    return {
-        "message": f"Perspective for card {card_id} - Coming soon",
+    from urllib.parse import urlparse
+
+    try:
+        card_uuid = UUID(card_id)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="card_id must be a UUID")
+
+    result = await db.execute(select(BloomCard).where(BloomCard.id == card_uuid))
+    cards = result.scalars().all()
+    if not cards:
+        raise HTTPException(status_code=404, detail="Card not found")
+    card = cards[0]
+
+    measured = card.score_provenance is not None
+    response: dict[str, Any] = {
+        "card_id": str(card.id),
+        "title": card.title,
+        "source_type": card.source_type,
+        "scores": {
+            "bias_score": card.bias_score if measured else None,
+            "constructiveness_score": card.constructiveness_score if measured else None,
+            "blindspot_tags": (card.blindspot_tags or []) if measured else [],
+            "score_provenance": card.score_provenance,
+        },
+        "source": {
+            "original_url": card.original_url,
+            "domain": urlparse(str(card.original_url)).netloc or None,
+        },
+        "data_context": None,
+        "topic_cluster": None,
     }
+
+    card_embedding = card.embedding
+    if card_embedding is None:
+        return response
+
+    # "The Data Layer": the semantically nearest OWID data card, so readers
+    # can check a story against ground-truth statistics (factfulness v1 —
+    # retrieval only, no automated verdicts).
+    try:
+        distance = BloomCard.embedding.cosine_distance(card_embedding)
+        stmt = (
+            select(BloomCard)
+            .where(
+                BloomCard.source_type == "OWID",
+                BloomCard.id != card.id,
+                BloomCard.embedding.isnot(None),
+            )
+            .order_by(distance)
+            .limit(1)
+        )
+        nearest = (await db.execute(stmt)).scalars().all()
+        if nearest:
+            data_card = nearest[0]
+            response["data_context"] = {
+                "card_id": str(data_card.id),
+                "title": data_card.title,
+                "original_url": data_card.original_url,
+                "indicator": dict(data_card.data_payload or {}).get("indicator"),
+            }
+    except Exception as e:
+        logger.warning(f"Perspective data-context lookup failed: {e}")
+
+    # Topical cluster (blindspot v1): how many cards sit close to this one
+    # and how source-diverse they are. A large single-source cluster is a
+    # coverage blindspot signal.
+    try:
+        distance = BloomCard.embedding.cosine_distance(card_embedding)
+        cluster_stmt = (
+            select(BloomCard.source_type, func.count())
+            .where(
+                BloomCard.embedding.isnot(None),
+                BloomCard.id != card.id,
+                distance < 0.3,
+            )
+            .group_by(BloomCard.source_type)
+        )
+        rows = (await db.execute(cluster_stmt)).fetchall()
+        if rows:
+            by_source = {str(row[0]): int(row[1]) for row in rows}
+            response["topic_cluster"] = {
+                "size": sum(by_source.values()),
+                "source_types": by_source,
+                "single_source": len(by_source) == 1 and sum(by_source.values()) >= 3,
+            }
+    except Exception as e:
+        logger.warning(f"Perspective cluster lookup failed: {e}")
+
+    return response

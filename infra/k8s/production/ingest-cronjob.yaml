@@ -71,6 +71,8 @@ spec:
                   ("POST", "/ingest/openalex", {"topic_key": "renewable_energy", "limit": "3"}),
                   ("POST", "/ingest/openalex", {"topic_key": "public_health", "limit": "3"}),
                   ("POST", "/ingest/aesthetics/all", {"limit_per_channel": "2"}),
+                  ("POST", "/ingest/neocities", {"limit": "5"}),
+                  ("POST", "/ingest/narrative", {"limit": "5"}),
               ]
               failures = 0
               with httpx.Client(base_url=base, headers=headers, timeout=300) as client:

@@ -49,6 +49,12 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
     EMBEDDING_DIMENSION: int = 384
 
+    # Selva (MADFAM LLM gateway, OpenAI-compatible /v1 — see ECOSYSTEM.md).
+    # Perspective scoring stays dormant until SELVA_BASE_URL is set.
+    SELVA_BASE_URL: str = ""
+    SELVA_API_KEY: str = ""
+    SELVA_SCORING_MODEL: str = "selva-default"
+
     class Config:
         env_file = ".env"
         case_sensitive = True

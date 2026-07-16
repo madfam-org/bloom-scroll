@@ -246,6 +246,39 @@ class BloomAlgorithm:
         score = 1.0 - (deviation / max_deviation)
         return max(0.0, min(1.0, score))
 
+    @staticmethod
+    def interleave_sources(cards: list[BloomCard]) -> list[BloomCard]:
+        """
+        "Robin Hood" layout (PRD §3.3): reorder so adjacent cards differ in
+        source_type whenever inventory allows, balancing image-rich and
+        text-heavy content for visual rhythm. Greedy round-robin over
+        source types, preserving each type's internal order; falls back to
+        repeats only when a single type dominates the remainder.
+        """
+        if len(cards) < 3:
+            return cards
+
+        by_source: dict[str, list[BloomCard]] = {}
+        for card in cards:
+            by_source.setdefault(str(card.source_type), []).append(card)
+
+        result: list[BloomCard] = []
+        last_source: str | None = None
+        while any(by_source.values()):
+            # Prefer the most-stocked type that differs from the last pick.
+            candidates = sorted(
+                (source for source, queue in by_source.items() if queue),
+                key=lambda source: -len(by_source[source]),
+            )
+            pick = next(
+                (source for source in candidates if source != last_source),
+                candidates[0],
+            )
+            result.append(by_source[pick].pop(0))
+            last_source = pick
+
+        return result
+
     def calculate_reason_tag(
         self,
         card: BloomCard,

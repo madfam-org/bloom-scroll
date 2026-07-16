@@ -8,6 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth import User, require_write_access
 from app.core.database import get_db
 from app.ingestion.aesthetics import AestheticsConnector, ingest_all_aesthetics
+from app.ingestion.narrative import NarrativeConnector
+from app.ingestion.neocities import NeocitiesConnector
 from app.ingestion.openalex import OpenAlexConnector
 from app.ingestion.owid import OWIDConnector, ingest_all_owid_datasets
 from app.schemas.bloom_card import BloomCardResponse
@@ -241,3 +243,59 @@ async def list_aesthetic_channels() -> dict:
         "channels": connector.CHANNELS,
         "count": len(connector.CHANNELS),
     }
+
+
+@router.post("/neocities", response_model=list[BloomCardResponse])
+async def ingest_neocities_sites(
+    limit: int = 10,
+    db: AsyncSession = Depends(get_db),
+    _caller: User = Depends(require_write_access),
+) -> list[BloomCardResponse]:
+    """
+    Ingest recently-updated indie-web sites from Neocities.
+
+    Args:
+        limit: Number of sites to ingest (default: 10)
+
+    Returns:
+        List of INDIE_WEB BloomCards (new or already-known)
+
+    Example:
+        POST /ingest/neocities?limit=10
+    """
+    connector = NeocitiesConnector()
+    cards = await connector.ingest_to_database(db, limit)
+    if not cards:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to fetch any Neocities sites",
+        )
+    return [BloomCardResponse.model_validate(card) for card in cards]
+
+
+@router.post("/narrative", response_model=list[BloomCardResponse])
+async def ingest_narrative_tropes(
+    limit: int = 5,
+    db: AsyncSession = Depends(get_db),
+    _caller: User = Depends(require_write_access),
+) -> list[BloomCardResponse]:
+    """
+    Ingest narrative-trope articles (Tropedia MediaWiki mirror).
+
+    Args:
+        limit: Number of trope articles to ingest (default: 5)
+
+    Returns:
+        List of NARRATIVE BloomCards (new or already-known)
+
+    Example:
+        POST /ingest/narrative?limit=5
+    """
+    connector = NarrativeConnector()
+    cards = await connector.ingest_to_database(db, limit)
+    if not cards:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to fetch any narrative tropes",
+        )
+    return [BloomCardResponse.model_validate(card) for card in cards]
