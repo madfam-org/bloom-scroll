@@ -51,9 +51,16 @@ async def test_feed_rejects_invalid_user_context_uuid(client: AsyncClient) -> No
 
 
 @pytest.mark.asyncio
-async def test_perspective_endpoint_is_explicit_placeholder(client: AsyncClient) -> None:
-    """The current perspective endpoint is present but not implemented."""
+async def test_perspective_endpoint_rejects_non_uuid(client: AsyncClient) -> None:
+    """The perspective endpoint validates card_id as UUID."""
     response = await client.get("/api/v1/perspective/test-card")
+    assert response.status_code == 422
 
-    assert response.status_code == 200
-    assert response.json() == {"message": "Perspective for card test-card - Coming soon"}
+
+@pytest.mark.asyncio
+async def test_perspective_endpoint_404_for_unknown_card(client: AsyncClient) -> None:
+    """An unknown card id yields 404 (real endpoint since 2026-07-16)."""
+    response = await client.get(
+        "/api/v1/perspective/00000000-0000-0000-0000-000000000000"
+    )
+    assert response.status_code == 404

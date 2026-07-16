@@ -19,7 +19,7 @@ This roadmap tracks the 7 core implementation stories for Bloom Scroll, generate
 | **STORY-001** | Infrastructure & OWID Ingestion (The Roots) | The Roots | 🔴 Critical | ✅ **Done** | [Details](#story-001-the-roots) |
 | **STORY-002** | Mobile Charts & Upward Scroll (The Stem) | The Stem | 🔴 Critical | ✅ **Done** | [Details](#story-002-the-stem) |
 | **STORY-003** | Aesthetics & Masonry Grid (The Flower) | The Flower | 🟡 High | ✅ **Done** | [Details](#story-003-the-flower) |
-| **STORY-004** | Vector Serendipity & Bias Engine (The Brain) | The Lens | 🔴 Critical | ✅ **Done** | [Implementation](STORY-004-IMPLEMENTATION.md) |
+| **STORY-004** | Vector Serendipity & Bias Engine (The Brain) | The Lens | 🔴 Critical | 🟡 **Serendipity done; bias engine open** | [Implementation](STORY-004-IMPLEMENTATION.md) |
 | **STORY-005** | Poison Pill & Stability Tests (The Immunity) | Quality | 🟡 High | ✅ **Backend Repaired** | [Details](#story-005-the-immunity) |
 | **STORY-006** | Perspective Overlay & Flip Animation (The Soul) | The Lens | 🟢 Medium | ✅ **Done** | [Implementation](STORY-006-IMPLEMENTATION.md) |
 | **STORY-007** | Finite Feed & Completion Widget (The Boundary) | The Scroll | 🔴 Critical | ✅ **Done** | [Implementation](STORY-007-IMPLEMENTATION.md) |
@@ -140,7 +140,8 @@ This roadmap tracks the 7 core implementation stories for Bloom Scroll, generate
 **Vector Serendipity & Bias Engine**
 
 **Epic**: The Lens (Perspective Analysis)
-**Status**: ✅ Done
+**Status**: 🟡 Serendipity done; bias engine open (`detect_bias` returns None; scores
+are only emitted/displayed when `score_provenance` is set — 2026-07-16 audit D5)
 **Priority**: Critical
 
 #### Objectives
@@ -365,6 +366,36 @@ This roadmap tracks the 7 core implementation stories for Bloom Scroll, generate
 
 ## Next Steps
 
+### Completed 2026-07-16 (vision-gap remediation Phase 0/1)
+1. ✅ Auth-gated all mutating endpoints (Janua Bearer or `INGEST_API_KEY`)
+2. ✅ Feed pagination honesty: `exclude_ids` support, no duplicate pages,
+   `has_next_page` derived from actually-remaining unseen cards
+3. ✅ `/livez` liveness endpoint; K8s liveness decoupled from DB health
+4. ✅ Surge-free rollout strategy + memory headroom on the API deployment
+5. ✅ `score_provenance` column: unmeasured bias/constructiveness scores are
+   nulled by migration 003 and hidden by the UI
+6. ✅ Daily ingestion CronJob (`infra/k8s/production/ingest-cronjob.yaml`)
+7. ✅ Serendipity distance filtering moved into pgvector SQL (whole corpus,
+   not the 50 most recent rows)
+8. ✅ Removed unused `pymilvus` dependency and dead `BACKEND_CORS_ORIGINS` setting
+
+### Completed 2026-07-16 (second wave: Phases 2-4)
+1. ✅ Perspective Engine v1: Selva scoring service (dormant until
+   `SELVA_BASE_URL` set), provenance stamping, wired into all connectors
+2. ✅ Real `/api/v1/perspective/{card_id}`: measured scores, nearest-OWID
+   data context, topical-cluster diversity signal, source attribution
+3. ✅ OWID connector fixed (old GitHub CSV paths 404 — switched to the
+   grapher CSV API) and expanded 3 → 6 verified datasets
+4. ✅ Neocities (INDIE_WEB) + Tropedia (NARRATIVE) connectors, live-tested;
+   5 of 6 PRD content types now have working connectors (My-MOOC remains,
+   pending a scraping-policy decision)
+5. ✅ URL dedup across all connectors (idempotent daily re-ingestion)
+6. ✅ Robin Hood source interleave in the feed
+7. ✅ Mini-Bloom 5-card sessions + shimmer skeleton loading (frontend)
+8. ✅ Redis hot-feed cache, per-IP rate limiting, Sentry wiring (dormant
+   until DSN set), Prometheus `/metrics` + ServiceMonitor + NetworkPolicy
+9. ✅ Celery scaffold removed (CronJob is the scheduler)
+
 ### Immediate (Week 1)
 1. ✅ Complete STORY-007 implementation
 2. ✅ Update all documentation
@@ -448,6 +479,6 @@ This roadmap tracks the 7 core implementation stories for Bloom Scroll, generate
 
 ---
 
-**Version**: 1.1
-**Last Updated**: 2026-05-28
+**Version**: 1.2
+**Last Updated**: 2026-07-16
 **Maintained by**: Project team

@@ -104,3 +104,26 @@ spec:
     - podSelector:
         matchLabels:
           app.kubernetes.io/part-of: bloom-scroll
+---
+# Prometheus (kube-prometheus-stack, monitoring namespace) scrapes
+# /metrics on the API pods (2026-07-16 plan, Phase 4). The endpoint
+# additionally refuses requests that arrive via Cloudflare (CF headers),
+# so the public hostname cannot read it.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-monitoring-scrape
+  namespace: bloom-scroll
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: bloom-scroll
+  policyTypes: [Ingress]
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: monitoring
+    ports:
+    - port: 8000
+      protocol: TCP

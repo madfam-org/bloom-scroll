@@ -1,0 +1,103 @@
+# Scheduled content ingestion — makes the "fresh 20-card daily feed" real.
+#
+# Until 2026-07 nothing refreshed production content: the Celery beat task
+# was a not_implemented stub and the same 8 seed cards served for ~3 months
+# (2026-07-16 vision-gap audit, Phase 1). This CronJob calls the API's own
+# authenticated ingestion endpoints once a day.
+#
+# Auth: X-API-Key must match the INGEST_API_KEY entry in bloom-scroll-secrets
+# (the API container reads the same secret via envFrom, so one value wires
+# both sides). Rotate by updating the secret; no image change needed.
+#
+# Image: reuses the API image (already present on nodes, GHCR not Docker Hub
+# — see internal-devops runbooks/dockerhub-rate-limit-mitigation.md) purely
+# for its Python + httpx runtime.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: bloom-scroll-ingest
+  namespace: bloom-scroll
+  labels:
+    app.kubernetes.io/name: bloom-scroll-ingest
+    app.kubernetes.io/part-of: bloom-scroll
+spec:
+  # 05:10 UTC daily — before the Americas' morning; offset avoids the
+  # top-of-hour cluster cron rush.
+  schedule: "10 5 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 1800
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: bloom-scroll-ingest
+            app.kubernetes.io/part-of: bloom-scroll
+        spec:
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            fsGroup: 1001
+            seccompProfile:
+              type: RuntimeDefault
+          imagePullSecrets:
+          - name: ghcr-credentials
+          containers:
+          - name: ingest
+            image: ghcr.io/madfam-org/bloom-scroll/api:latest
+            imagePullPolicy: IfNotPresent
+            env:
+            - name: HOME
+              value: /tmp
+            - name: INGEST_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: bloom-scroll-secrets
+                  key: INGEST_API_KEY
+            command: ["python", "-c"]
+            args:
+            - |
+              import os, sys
+              import httpx
+
+              base = "http://bloom-scroll-api.bloom-scroll.svc.cluster.local:80/api/v1"
+              headers = {"X-API-Key": os.environ["INGEST_API_KEY"]}
+              calls = [
+                  ("POST", "/ingest/owid/all", {}),
+                  ("POST", "/ingest/openalex", {"topic_key": "renewable_energy", "limit": "3"}),
+                  ("POST", "/ingest/openalex", {"topic_key": "public_health", "limit": "3"}),
+                  ("POST", "/ingest/aesthetics/all", {"limit_per_channel": "2"}),
+                  ("POST", "/ingest/neocities", {"limit": "5"}),
+                  ("POST", "/ingest/narrative", {"limit": "5"}),
+              ]
+              failures = 0
+              with httpx.Client(base_url=base, headers=headers, timeout=300) as client:
+                  for method, path, params in calls:
+                      try:
+                          r = client.request(method, path, params=params)
+                          body = r.text[:300]
+                          print(f"{method} {path} -> {r.status_code}: {body}", flush=True)
+                          if r.status_code >= 400:
+                              failures += 1
+                      except Exception as exc:
+                          print(f"{method} {path} -> EXCEPTION: {exc}", flush=True)
+                          failures += 1
+              # Partial failure is tolerated (one flaky upstream source must
+              # not mark the whole refresh red); total failure is not.
+              sys.exit(1 if failures == len(calls) else 0)
+            resources:
+              requests:
+                cpu: "50m"
+                memory: "128Mi"
+              limits:
+                cpu: "200m"
+                memory: "256Mi"
+            securityContext:
+              privileged: false
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop: [ALL]

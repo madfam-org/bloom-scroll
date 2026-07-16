@@ -6,6 +6,7 @@ resources:
 - db-init-job.yaml
 - api-deployment.yaml
 - api-service.yaml
+- ingest-cronjob.yaml
 - web-deployment.yaml
 - web-service.yaml
 - network-policies.yaml

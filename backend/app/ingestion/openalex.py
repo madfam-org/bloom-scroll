@@ -7,7 +7,9 @@ import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.analysis.processor import get_nlp_processor
+from app.analysis.scoring import get_scoring_service
 from app.core.config import settings
+from app.ingestion.common import get_card_for_url
 from app.models.bloom_card import BloomCard
 
 logger = logging.getLogger(__name__)
@@ -183,6 +185,14 @@ class OpenAlexConnector:
             try:
                 embedding_text = f"{normalized['title']}. {normalized['summary']}"
                 embedding = get_nlp_processor().generate_embedding(embedding_text)
+                existing = await get_card_for_url(session, normalized["original_url"])
+                if existing is not None:
+                    logger.debug(
+                        f"OpenAlex card already exists: {normalized['original_url']}"
+                    )
+                    cards.append(existing)
+                    continue
+
                 card = BloomCard(
                     source_type="OPENALEX",
                     title=normalized["title"],
@@ -191,6 +201,7 @@ class OpenAlexConnector:
                     data_payload=normalized["data_payload"],
                     embedding=embedding,
                 )
+                await get_scoring_service().apply_scores(card)
                 session.add(card)
                 await session.flush()
                 await session.refresh(card)

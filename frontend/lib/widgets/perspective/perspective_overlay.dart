@@ -68,14 +68,25 @@ class PerspectiveOverlay extends StatelessWidget {
                 SerendipityTag(meta: meta),
                 const SizedBox(height: BloomSpacing.lg),
 
-                // 2. Political Compass (Bias Meter)
-                BiasCompass(biasScore: meta.biasScore),
-                const SizedBox(height: BloomSpacing.lg),
-
-                // 3. Constructiveness Ring (Nutritional Score)
-                ConstructivenessRing(score: meta.constructivenessScore),
-
-                const SizedBox(height: BloomSpacing.md),
+                // 2 & 3. Bias meter + constructiveness ring — only rendered
+                // when a pipeline actually measured the scores. Showing
+                // gauges for unmeasured cards presented fabricated values
+                // as analysis (defect D5, 2026-07-16 audit).
+                if (meta.hasMeasuredScores && meta.biasScore != null) ...[
+                  BiasCompass(biasScore: meta.biasScore!),
+                  const SizedBox(height: BloomSpacing.lg),
+                ],
+                if (meta.hasMeasuredScores && meta.constructivenessScore != null) ...[
+                  ConstructivenessRing(score: meta.constructivenessScore!),
+                  const SizedBox(height: BloomSpacing.md),
+                ],
+                if (!meta.hasMeasuredScores)
+                  Text(
+                    'Perspective analysis not yet available for this card.',
+                    style: BloomTypography.caption.copyWith(
+                      color: BloomColors.inkSecondary,
+                    ),
+                  ),
 
                 // Blindspot tags if present
                 if (meta.blindspotTags.isNotEmpty) ...[

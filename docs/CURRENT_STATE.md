@@ -1,6 +1,6 @@
 # Bloom Scroll Current State
 
-**Last audited:** 2026-05-28  
+**Last audited:** 2026-05-28 (production probes); 2026-07-16 remediation changes noted below  
 **Scope:** repository files, local manifests/configuration, and public `almanac.solar` production HTTP surface.
 
 This file is the evidence-backed current-state reference for the repo. Historical story docs remain useful for implementation context, but use this file plus the top-level READMEs for current commands, deployed behavior, and known drift. The detailed 2026-05-28 stabilization evidence trail is in [STABILITY_SESSION_2026-05-28.md](STABILITY_SESSION_2026-05-28.md).
@@ -145,9 +145,90 @@ flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000
 - Janua auth now verifies RS256 tokens through JWKS and includes tests for valid keys, unknown `kid` rejection, and explicit HS256 fallback.
 - OpenAlex ingestion now has a repo-owned connector, endpoints, and tests for abstract reconstruction and malformed-work rejection.
 
+## 2026-07-16 Remediation (Phase 0/1 of the vision-gap plan)
+
+Changes landed in this repo on 2026-07-16 (see
+`internal-devops/roadmaps/2026-07-16-bloom-scroll-vision-gap-remediation.md`
+for the audit that motivated them). Production behavior updates after the
+next deploy + `INGEST_API_KEY` secret rotation:
+
+- **Write endpoints now require auth (D1).** `POST /api/v1/ingest/*` and
+  `/api/v1/interactions/*` accept a Janua Bearer token or the
+  `INGEST_API_KEY` service key via `X-API-Key`; unauthenticated writes 401.
+  Reading another user's interaction history is 403 unless service role.
+- **Feed pagination is honest (D2).** New `exclude_ids` query param; the
+  server never re-serves excluded/read cards; `has_next_page` reflects
+  actually-remaining unseen cards. The Flutter client sends read + on-screen
+  ids and defensively dedupes.
+- **Liveness decoupled from DB (D3).** New `/livez` endpoint; K8s liveness
+  points there while readiness stays on `/health`. Rollouts are surge-free
+  (`maxSurge: 0`) for the CPU-tight cluster; API memory limit raised to
+  1536Mi to rule out OOM kills near the torch/SBERT ceiling.
+- **Fabricated scores eliminated (D5).** New `score_provenance` column
+  (migration 003) nulls all legacy hand-seeded bias/constructiveness values;
+  `to_dict` only emits scores when provenance is set; the perspective
+  overlay hides the gauges otherwise and shows "analysis not yet available".
+- **Scheduled ingestion exists.** `infra/k8s/production/ingest-cronjob.yaml`
+  runs daily at 05:10 UTC against the authenticated endpoints using
+  `INGEST_API_KEY` from `bloom-scroll-secrets` (operator must add the key —
+  see `secrets-template.yaml`).
+- **Serendipity is pgvector-native.** The distance band + ideal-midpoint
+  ordering run in SQL over the whole corpus; candidates are no longer capped
+  at the ~50 most recent rows; already-seen cards are excluded; short pages
+  top up with recent unseen cards.
+- **Health freshness signal.** `/health` now reports `checks.freshness`
+  (newest-card age, `stale` past 48h) informationally without flipping
+  overall status — monitors should alert on it.
+- **Dead config removed.** `BACKEND_CORS_ORIGINS` setting deleted
+  (middleware reads `CORS_ALLOWED_ORIGINS`); unused `pymilvus` dependency
+  dropped from `pyproject.toml`/lock (obsoletes Dependabot #95).
+
+Second wave, same day (Phases 2-4 of the plan):
+
+- **Perspective Engine v1.** `app/analysis/scoring.py` scores cards through
+  Selva's OpenAI-compatible API at ingest, stamping `score_provenance`;
+  dormant until `SELVA_BASE_URL` is set in secrets. `/api/v1/perspective/{id}`
+  is real now: provenance-gated scores, nearest-OWID data context, topical
+  cluster summary, source attribution.
+- **OWID ingestion was broken and is fixed.** Every configured owid-datasets
+  GitHub path 404s (verified 2026-07-16) — production OWID ingestion could
+  never have worked. Rewritten against `https://ourworldindata.org/grapher/
+  {slug}.csv` and expanded to 6 datasets, each verified fetching live data.
+- **Two new connectors.** Neocities (INDIE_WEB; browse discovery + official
+  info API) and Tropedia (NARRATIVE; All The Tropes is Miraheze-bot-blocked
+  from datacenter IPs). 5 of 6 PRD content types now real; My-MOOC deferred
+  pending a scraping-policy decision.
+- **Idempotent ingestion.** All connectors dedupe by `original_url` and
+  return existing cards, so the daily CronJob neither duplicates nor
+  false-fails; CronJob now covers all 5 sources.
+- **Feed quality.** Robin Hood source interleaving; anonymous first page
+  cached in Redis for 60s; per-IP GET rate limiting (120/min default).
+- **Observability.** Sentry SDK wired (dormant until `SENTRY_DSN`);
+  Prometheus `/metrics` (refuses Cloudflare-forwarded requests) +
+  `allow-monitoring-scrape` NetworkPolicy; ServiceMonitor manifest in
+  internal-devops `grafana/service-monitors/bloom-scroll-api.yaml`.
+- **Celery scaffold removed** (dep, worker.py, compose services, settings).
+- **Frontend.** Mini-Bloom 5-card sessions (AppBar toggle, own completion
+  state) and shimmer skeleton loading replace the spinner.
+
+Operator follow-ups required to activate all of the above in production:
+
+1. Add `INGEST_API_KEY` to the `bloom-scroll-secrets` K8s secret
+   (`openssl rand -hex 32`) — via Enclii secrets tooling per
+   MADFAM-ENCLII-FIRST doctrine.
+2. Deploy (migration 003 clears legacy fabricated scores at PreSync).
+3. Optionally trigger the CronJob once manually to refresh content
+   immediately instead of waiting for 05:10 UTC.
+4. To activate perspective scoring: set `SELVA_BASE_URL` (+ key/model) in
+   the secret once Selva access is provisioned.
+5. To activate error telemetry: set `SENTRY_DSN` in the secret.
+6. Apply `internal-devops/grafana/service-monitors/bloom-scroll-api.yaml`
+   to the monitoring namespace after deploy.
+
 ## Recommended Next Work
 
 1. Add frontend E2E and stress tests for finite-feed completion, pagination, production API-base behavior, missing metadata, image/aspect-ratio failures, and error-boundary paths.
 2. Add production observability: error telemetry, uptime checks, latency/error dashboards, feed failure alerts, ingestion alerts, and browser error reporting.
 3. Add load and soak tests for feed, health, and ingestion paths with larger card/vector counts.
-4. Add runtime resilience work: client/API retries, app-level rate limiting, hot-feed caching, and explicit graceful-degradation tests.
+4. Add runtime resilience work: app-level rate limiting, hot-feed caching, and explicit graceful-degradation tests (client retry/backoff already exists in `api_service.dart`).
+5. Perspective Engine v1 (Phase 2 of the vision-gap plan): Selva-backed bias/constructiveness scoring at ingest with `score_provenance` set, real `/perspective/{card_id}` data, scoped blindspot + factfulness passes.

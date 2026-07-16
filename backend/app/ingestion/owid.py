@@ -10,6 +10,8 @@ import pandas as pd
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.analysis.processor import get_nlp_processor
+from app.analysis.scoring import get_scoring_service
+from app.ingestion.common import get_card_for_url
 from app.models.bloom_card import BloomCard
 from app.schemas.bloom_card import OWIDDataPayload
 
@@ -24,25 +26,45 @@ class OWIDConnector:
     in the frontend instead of static images.
     """
 
-    # OWID GitHub raw content base URL
-    OWID_RAW_BASE = "https://raw.githubusercontent.com/owid/owid-datasets/master/datasets"
+    # OWID Grapher CSV API. The previous source (raw CSVs from the
+    # owid/owid-datasets GitHub repo) 404s for every configured path —
+    # verified 2026-07-16 — so OWID ingestion could never have worked in
+    # production. The grapher endpoints are OWID's stable public data API:
+    # https://ourworldindata.org/grapher/{slug}.csv (+ .metadata.json).
+    OWID_GRAPHER_BASE = "https://ourworldindata.org/grapher"
 
-    # Example datasets (can be expanded)
+    # Every slug + unit below verified against the live grapher API on
+    # 2026-07-16. `slug` is both the fetch key and the public chart URL.
     DATASETS = {
         "co2_emissions": {
-            "path": "CO2 emissions/CO2 emissions.csv",
-            "indicator": "CO2 emissions",
-            "unit": "tonnes",
+            "slug": "co2-emissions-per-capita",
+            "indicator": "CO₂ emissions per capita",
+            "unit": "tonnes per person",
         },
         "life_expectancy": {
-            "path": "Life expectancy/Life expectancy.csv",
+            "slug": "life-expectancy",
             "indicator": "Life expectancy",
             "unit": "years",
         },
         "child_mortality": {
-            "path": "Child mortality/Child mortality.csv",
-            "indicator": "Child mortality",
-            "unit": "deaths per 1,000 live births",
+            "slug": "child-mortality",
+            "indicator": "Child mortality rate",
+            "unit": "deaths per 100 live births",
+        },
+        "renewables_share": {
+            "slug": "share-electricity-renewables",
+            "indicator": "Share of electricity from renewables",
+            "unit": "%",
+        },
+        "literacy_rate": {
+            "slug": "literacy-rate-adults",
+            "indicator": "Adult literacy rate",
+            "unit": "%",
+        },
+        "solar_capacity": {
+            "slug": "solar-pv-cumulative-capacity",
+            "indicator": "Cumulative solar PV capacity",
+            "unit": "gigawatts",
         },
     }
 
@@ -149,12 +171,15 @@ class OWIDConnector:
             return None
 
         dataset_info = self.DATASETS[dataset_key]
-        url = f"{self.OWID_RAW_BASE}/{dataset_info['path']}"
+        url = f"{self.OWID_GRAPHER_BASE}/{dataset_info['slug']}.csv"
 
         try:
             logger.info(f"Fetching OWID dataset from {url}")
 
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
+            # Grapher CSV endpoints redirect; follow_redirects is required.
+            async with httpx.AsyncClient(
+                timeout=self.timeout, follow_redirects=True
+            ) as client:
                 response = await client.get(url)
                 response.raise_for_status()
 
@@ -224,15 +249,24 @@ class OWIDConnector:
         nlp = get_nlp_processor()
         embedding = nlp.generate_embedding(embedding_text)
 
+        # Idempotent re-ingestion: daily CronJob re-runs must not duplicate
+        # stable datasets nor read as failures.
+        original_url = f"{self.OWID_GRAPHER_BASE}/{dataset_info['slug']}"
+        existing = await get_card_for_url(session, original_url)
+        if existing is not None:
+            logger.info(f"OWID card already exists, returning existing: {original_url}")
+            return existing
+
         # Create BloomCard
         card = BloomCard(
             source_type="OWID",
             title=title,
             summary=summary,
-            original_url=f"https://ourworldindata.org/grapher/{dataset_key.replace('_', '-')}",
+            original_url=original_url,
             data_payload=data_payload,
             embedding=embedding,
         )
+        await get_scoring_service().apply_scores(card)
 
         # Add to session
         session.add(card)
