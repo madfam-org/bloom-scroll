@@ -43,7 +43,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Run production smoke checks (poll until rollout lands)
         # A fixed sleep races the rollout: ArgoCD reconcile alone can take
         # ~3 min before the PreSync db-init hook and rolling update even
