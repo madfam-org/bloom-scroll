@@ -16,6 +16,11 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/bloom_scroll"
+    # Set when the runtime routes through pgbouncer (transaction pooling):
+    # migrations must keep a DIRECT postgres connection — alembic DDL and the
+    # adoption-inspection engine want a session, not a pooled transaction.
+    # Unset => migrations use DATABASE_URL (direct deployments unchanged).
+    DIRECT_DATABASE_URL: str | None = None
     # Connection budget vs the SHARED postgres.data.svc: max_connections=100
     # for the ENTIRE MADFAM cluster, ~90 in use at steady state, cluster-wide
     # exhaustion incident 2026-07-22. The old 20+10 defaults let 2 replicas
