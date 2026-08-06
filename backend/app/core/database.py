@@ -33,6 +33,12 @@ engine = create_async_engine(
     echo=settings.DEBUG,
     pool_size=settings.DATABASE_POOL_SIZE,
     max_overflow=settings.DATABASE_MAX_OVERFLOW,
+    # pgbouncer (transaction pooling) compatibility: asyncpg's named
+    # prepared-statement cache breaks when consecutive transactions land on
+    # different server connections. cache_size=0 makes asyncpg use unnamed
+    # statements, which are per-transaction and pool-safe. Harmless (single
+    # protocol round-trip) when connecting direct.
+    connect_args={"statement_cache_size": 0},
 )
 
 # Create async session factory

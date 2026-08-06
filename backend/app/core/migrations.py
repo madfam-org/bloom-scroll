@@ -61,7 +61,7 @@ def sync_database_url() -> str:
     from app.core.config import settings
 
     return (
-        settings.DATABASE_URL
+        (settings.DIRECT_DATABASE_URL or settings.DATABASE_URL)
         .replace("postgresql+asyncpg://", "postgresql://")
         .replace("postgresql+psycopg://", "postgresql://")
         .replace("postgres://", "postgresql://")
