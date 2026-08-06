@@ -16,8 +16,15 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/bloom_scroll"
-    DATABASE_POOL_SIZE: int = 20
-    DATABASE_MAX_OVERFLOW: int = 10
+    # Connection budget vs the SHARED postgres.data.svc: max_connections=100
+    # for the ENTIRE MADFAM cluster, ~90 in use at steady state, cluster-wide
+    # exhaustion incident 2026-07-22. The old 20+10 defaults let 2 replicas
+    # claim 60 of the 100 slots. Budget: 2 replicas x (pool 5 + overflow 5)
+    # = 20 absolute max against a measured steady state of ~9. Raise per-env
+    # via these env vars, not by editing code. (Same pattern as fortuna,
+    # janua#483, ceq#70.)
+    DATABASE_POOL_SIZE: int = 5
+    DATABASE_MAX_OVERFLOW: int = 5
 
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
