@@ -118,8 +118,6 @@ services:
       REDIS_URL: redis://redis:6379/0
       MILVUS_HOST: milvus
       MILVUS_PORT: 19530
-      CELERY_BROKER_URL: redis://redis:6379/1
-      CELERY_RESULT_BACKEND: redis://redis:6379/2
     ports:
       - "8000:8000"
     depends_on:
@@ -132,50 +130,6 @@ services:
     volumes:
       - ../backend:/app
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-    networks:
-      - bloom-network
-
-  # Celery Worker for background tasks
-  celery-worker:
-    build:
-      context: ../backend
-      dockerfile: Dockerfile
-    container_name: bloom-celery-worker
-    environment:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/bloom_scroll
-      REDIS_URL: redis://redis:6379/0
-      MILVUS_HOST: milvus
-      MILVUS_PORT: 19530
-      CELERY_BROKER_URL: redis://redis:6379/1
-      CELERY_RESULT_BACKEND: redis://redis:6379/2
-    depends_on:
-      - postgres
-      - redis
-      - backend
-    volumes:
-      - ../backend:/app
-    command: celery -A app.worker worker --loglevel=info
-    networks:
-      - bloom-network
-
-  # Celery Beat for scheduled tasks
-  celery-beat:
-    build:
-      context: ../backend
-      dockerfile: Dockerfile
-    container_name: bloom-celery-beat
-    environment:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/bloom_scroll
-      REDIS_URL: redis://redis:6379/0
-      CELERY_BROKER_URL: redis://redis:6379/1
-      CELERY_RESULT_BACKEND: redis://redis:6379/2
-    depends_on:
-      - postgres
-      - redis
-      - backend
-    volumes:
-      - ../backend:/app
-    command: celery -A app.worker beat --loglevel=info
     networks:
       - bloom-network
 

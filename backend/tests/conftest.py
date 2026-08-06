@@ -61,6 +61,9 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
         def all(self) -> list[Any]:
             return []
 
+        def fetchall(self) -> list[Any]:
+            return []
+
     class _FakeDBSession:
         async def execute(self, statement: Any) -> _FakeResult:
             query = str(statement)

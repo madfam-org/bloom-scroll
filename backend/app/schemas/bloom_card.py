@@ -36,6 +36,7 @@ class BloomCardResponse(BloomCardBase):
     bias_score: float | None = None
     constructiveness_score: float | None = None
     blindspot_tags: list[str] | None = None
+    score_provenance: str | None = None
     created_at: datetime
 
     class Config:

@@ -51,28 +51,38 @@ class ChartPoint {
 
 /// Perspective metadata for the flip overlay
 class PerspectiveMeta {
-  final double biasScore; // -1.0 (left) to +1.0 (right)
-  final double constructivenessScore; // 0.0 to 100.0
+  // Scores are null when no analysis pipeline measured them
+  // (score_provenance unset server-side). Null means "show no gauge",
+  // never "assume center / 50" — the old defaults presented invented
+  // values as analysis (defect D5, 2026-07-16 audit).
+  final double? biasScore; // -1.0 (left) to +1.0 (right)
+  final double? constructivenessScore; // 0.0 to 100.0
   final List<String> blindspotTags;
+  final String? scoreProvenance; // e.g. "selva/<model>@<version>"
   final String reasonTag; // BLINDSPOT_BREAKER, DEEP_DIVE, EXPLORE, etc.
 
   PerspectiveMeta({
     required this.biasScore,
     required this.constructivenessScore,
     required this.blindspotTags,
+    this.scoreProvenance,
     required this.reasonTag,
   });
 
   factory PerspectiveMeta.fromJson(Map<String, dynamic> json) {
     return PerspectiveMeta(
-      biasScore: (json['bias_score'] as num?)?.toDouble() ?? 0.0,
-      constructivenessScore: (json['constructiveness_score'] as num?)?.toDouble() ?? 50.0,
+      biasScore: (json['bias_score'] as num?)?.toDouble(),
+      constructivenessScore: (json['constructiveness_score'] as num?)?.toDouble(),
       blindspotTags: (json['blindspot_tags'] as List<dynamic>?)
           ?.map((e) => e as String)
           .toList() ?? [],
+      scoreProvenance: json['score_provenance'] as String?,
       reasonTag: json['reason_tag'] as String? ?? 'RECENT',
     );
   }
+
+  /// Whether measured perspective scores exist for display.
+  bool get hasMeasuredScores => scoreProvenance != null;
 
   /// Get human-readable reason text for display
   String get reasonText {

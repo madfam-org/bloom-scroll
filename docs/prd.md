@@ -52,12 +52,19 @@ Unlike collaborative filtering (which creates echo chambers), this engine uses a
 *   **Serendipity Score ($S$):** Calculated as $S = Relevance \times (1 - Similarity)$. The system purposely selects items that are semantically distant from the user's last 5 reads but high in global quality.[4]
 *   **The "Robin Hood" Layout:** A layout algorithm (inspired by Flipboard) that balances "Rich" content (high-res art from CARI) with "Poor" content (text-heavy abstracts) to maintain visual rhythm and prevent fatigue.[22]
 
-### 3.4. Implementation Notes as of 2026-05-28
+### 3.4. Implementation Notes as of 2026-07-16
 
-- Implemented local ingestion modules: OWID and Are.na aesthetics.
-- OpenAlex ingestion is implemented through `backend/app/ingestion/openalex.py` and `/api/v1/ingest/openalex`.
-- Bias classification is currently a placeholder in `backend/app/analysis/processor.py`.
-- The finite feed endpoint is implemented at `GET /api/v1/feed` with a 20-card daily limit.
+- Implemented ingestion modules: OWID, Are.na aesthetics, and OpenAlex
+  (`backend/app/ingestion/`). Neocities, TVTropes, and My-MOOC are NOT implemented.
+- A daily ingestion CronJob (`infra/k8s/production/ingest-cronjob.yaml`) refreshes
+  content through the authenticated ingest endpoints.
+- Bias classification is currently a placeholder in `backend/app/analysis/processor.py`;
+  perspective scores are only emitted/displayed when `score_provenance` is set.
+- The finite feed endpoint is implemented at `GET /api/v1/feed` with a 20-card daily
+  limit and duplicate-free pagination via `exclude_ids`.
+- The daily limit is enforced client-side (localStorage read counts passed as
+  `read_count`); the server trusts the client. This is an accepted privacy-first
+  alpha trade-off (no accounts, no server-side read tracking) — recorded 2026-07-16.
 - Frontend state management is Riverpod, not BLoC.
 
 ---

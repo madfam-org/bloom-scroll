@@ -83,8 +83,8 @@ Local docs are available at `http://localhost:8000/docs`. Production-like enviro
 ## Configuration Notes
 
 - `DATABASE_URL` is normalized to `postgresql+asyncpg://` in `app/core/database.py`.
-- Runtime CORS middleware reads `CORS_ALLOWED_ORIGINS` in `app/main.py`.
-- `BACKEND_CORS_ORIGINS` exists in settings but is not currently wired into middleware.
+- Runtime CORS middleware reads `CORS_ALLOWED_ORIGINS` in `app/main.py`. (The old unwired `BACKEND_CORS_ORIGINS` setting was removed 2026-07-16.)
+- Mutating endpoints (`POST /api/v1/ingest/*`, `/api/v1/interactions/*`) require either a Janua Bearer token or the `INGEST_API_KEY` service key via `X-API-Key` (used by the production ingestion CronJob). Set `AUTH_ENABLED=false` for tokenless local development.
 - Auth helpers verify Janua RS256 tokens using `JANUA_JWKS_URI`, `JANUA_JWT_ISSUER`, and optional `JANUA_JWT_AUDIENCE`. HS algorithms are available only when explicitly configured for legacy local development.
 - Docs are disabled when `ENV`, `ENVIRONMENT`, or `PYTHON_ENV` is production-like.
 - `backend/poetry.lock` is committed for the standard backend dependency graph.

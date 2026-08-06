@@ -61,6 +61,15 @@ class BloomCard(Base):
         nullable=True,
         comment="e.g., ['conservative-blindspot', 'global-south-blindspot']",
     )
+    score_provenance = Column(
+        String(100),
+        nullable=True,
+        comment=(
+            "Which pipeline produced bias/constructiveness/blindspot values, "
+            "e.g. 'selva/<model>@<version>'. NULL means the scores were not "
+            "machine-measured and must not be presented to users."
+        ),
+    )
 
     # Bloom Logic (for serendipity scoring)
     embedding: Any = Column(
@@ -96,16 +105,18 @@ class BloomCard(Base):
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
-        # Include perspective metadata for frontend flip overlay
+        # Include perspective metadata for frontend flip overlay.
+        # Scores are only emitted when a pipeline actually measured them
+        # (score_provenance set). Hand-seeded or absent scores surface as
+        # null so the UI can hide the gauges instead of presenting
+        # fabricated values as analysis (defect D5, 2026-07-16 audit).
         if include_meta:
+            measured = self.score_provenance is not None
             data["meta"] = {
-                "bias_score": self.bias_score if self.bias_score is not None else 0.0,
-                "constructiveness_score": (
-                    self.constructiveness_score
-                    if self.constructiveness_score is not None
-                    else 50.0
-                ),
-                "blindspot_tags": self.blindspot_tags or [],
+                "bias_score": self.bias_score if measured else None,
+                "constructiveness_score": self.constructiveness_score if measured else None,
+                "blindspot_tags": (self.blindspot_tags or []) if measured else [],
+                "score_provenance": self.score_provenance,
                 "reason_tag": reason_tag or "RECENT",  # Default to recent if no serendipity context
             }
 

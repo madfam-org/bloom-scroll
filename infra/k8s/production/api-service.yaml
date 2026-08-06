@@ -3,11 +3,15 @@ kind: Service
 metadata:
   name: bloom-scroll-api
   namespace: bloom-scroll
+  labels:
+    app.kubernetes.io/name: bloom-scroll-api
+    app.kubernetes.io/part-of: bloom-scroll
 spec:
   type: ClusterIP
   selector:
     app: bloom-scroll-api
   ports:
-  - port: 80
+  - name: http
+    port: 80
     targetPort: 8000
     protocol: TCP

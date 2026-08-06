@@ -2,11 +2,12 @@
 
 import logging
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.auth import User, require_write_access
 from app.core.database import get_db
 from app.models.user_interaction import UserInteraction
 
@@ -27,6 +28,7 @@ class InteractionCreate(BaseModel):
 async def track_interaction(
     interaction: InteractionCreate,
     db: AsyncSession = Depends(get_db),
+    _caller: User = Depends(require_write_access),
 ) -> dict:
     """
     Track a user interaction with a card.
@@ -56,9 +58,13 @@ async def get_recent_interactions(
     user_id: str,
     limit: int = 5,
     db: AsyncSession = Depends(get_db),
+    caller: User = Depends(require_write_access),
 ) -> dict:
     """
     Get user's recent interactions for context building.
+
+    Reading history is private: callers may only query their own history
+    unless they hold the service role.
 
     Args:
         user_id: User identifier
@@ -68,6 +74,9 @@ async def get_recent_interactions(
     Returns:
         List of recent card IDs
     """
+    if caller.id != user_id and "service" not in caller.roles:
+        raise HTTPException(status_code=403, detail="Cannot read another user's history")
+
     stmt = (
         select(UserInteraction.card_id)
         .where(

@@ -39,12 +39,23 @@ jobs:
     name: Production Smoke
     runs-on: ubuntu-latest
     needs: build-publish
-    timeout-minutes: 5
+    timeout-minutes: 15
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@v4
-      - name: Wait for rollout propagation
-        run: sleep 60
-      - name: Run production smoke checks
-        run: scripts/prod-smoke.sh
+      - name: Run production smoke checks (poll until rollout lands)
+        # A fixed sleep races the rollout: ArgoCD reconcile alone can take
+        # ~3 min before the PreSync db-init hook and rolling update even
+        # start (2026-07-16: smoke ran against the previous revision and
+        # failed while the sync was still queued). Poll to a deadline.
+        run: |
+          deadline=$((SECONDS + 600))
+          until scripts/prod-smoke.sh; do
+            if (( SECONDS >= deadline )); then
+              echo "ERROR: smoke checks still failing after 10 minutes" >&2
+              exit 1
+            fi
+            echo "Smoke not green yet; retrying in 30s..."
+            sleep 30
+          done

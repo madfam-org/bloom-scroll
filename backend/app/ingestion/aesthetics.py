@@ -9,6 +9,8 @@ from PIL import Image
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.analysis.processor import get_nlp_processor
+from app.analysis.scoring import get_scoring_service
+from app.ingestion.common import get_card_for_url
 from app.models.bloom_card import BloomCard
 
 logger = logging.getLogger(__name__)
@@ -207,6 +209,12 @@ class AestheticsConnector:
                 embedding = nlp.generate_embedding(embedding_text)
 
                 # Create BloomCard
+                existing = await get_card_for_url(session, source_url)
+                if existing is not None:
+                    logger.debug(f"Aesthetic card already exists: {source_url}")
+                    cards.append(existing)
+                    continue
+
                 card = BloomCard(
                     source_type="AESTHETIC",
                     title=title,
@@ -215,6 +223,7 @@ class AestheticsConnector:
                     data_payload=data_payload,
                     embedding=embedding,
                 )
+                await get_scoring_service().apply_scores(card)
 
                 session.add(card)
                 await session.flush()

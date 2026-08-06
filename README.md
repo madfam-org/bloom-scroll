@@ -73,7 +73,7 @@ Bloom Scroll is built on four anti-doomscroll principles:
 
 ## ✅ Current State
 
-**Last audited**: 2026-05-28. See [docs/CURRENT_STATE.md](docs/CURRENT_STATE.md) for the evidence log from repository inspection and public production probes.
+**Last audited**: 2026-05-28 (production probes), 2026-07-16 (vision-gap audit + Phase 0/1 remediation). See [docs/CURRENT_STATE.md](docs/CURRENT_STATE.md) for the evidence log.
 
 Key observed facts:
 - Public web: `https://almanac.solar` returns HTTP 200.
@@ -120,10 +120,16 @@ poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 The local API runs at `http://localhost:8000`.
 
 ### 4. Seed content 🌾
+
+Write endpoints require auth (2026-07-16 hardening). For tokenless local
+development set `AUTH_ENABLED=false` in `backend/.env` first, then:
+
 ```bash
 curl -X POST "http://localhost:8000/api/v1/ingest/owid/all"
 curl -X POST "http://localhost:8000/api/v1/ingest/aesthetics/all?limit_per_channel=2"
 ```
+
+(With auth enabled, pass a Janua Bearer token or `X-API-Key: $INGEST_API_KEY`.)
 
 ### 5. Run the Flutter app 📱
 ```bash
@@ -296,7 +302,7 @@ flutter build web --release --dart-define=API_BASE_URL=http://localhost:8000
 - ✅ **STORY-001**: Infrastructure & OWID Ingestion
 - ✅ **STORY-002**: Flutter Scaffold & Charting
 - ✅ **STORY-003**: Aesthetics & Masonry Grid
-- ✅ **STORY-004**: Vector Serendipity & Bias Engine
+- ✅ **STORY-004**: Vector Serendipity (bias engine NOT done — `detect_bias` is a stub; scores only surface once a pipeline sets `score_provenance`)
 - ✅ **STORY-006**: Perspective Overlay & Flip Animation
 - ✅ **STORY-007**: Finite Feed & Completion Widget
 
@@ -307,7 +313,8 @@ flutter build web --release --dart-define=API_BASE_URL=http://localhost:8000
 - ✅ **OpenAlex ingestion**: Science cards now have a repo-owned connector and API endpoints.
 - ✅ **Control-plane observability release**: Enclii CLI `v1.0.0-alpha.1` reports runtime health correctly from the distributed GitHub release artifact.
 - ✅ **Backend dependency determinism**: `backend/poetry.lock` is committed, CPU-only ML wheels are pinned separately for Docker, and lockfile guard tests prevent CUDA drift.
-- 🔜 **Next stability priority**: frontend E2E/stress coverage, production observability, and load/soak testing.
+- ✅ **2026-07-16 Phase 0/1 remediation**: write endpoints auth-gated; feed pagination no longer re-serves cards (`exclude_ids`); liveness probe decoupled from DB (`/livez`); unmeasured perspective scores no longer displayed (`score_provenance` gate); daily ingestion CronJob added; serendipity query is pgvector-native.
+- 🔜 **Next stability priority**: frontend E2E/stress coverage, production observability (Sentry/metrics/alerts), and load/soak testing.
 
 See [ROADMAP.md](docs/ROADMAP.md) for detailed tracking.
 
