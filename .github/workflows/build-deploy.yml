@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   build-publish:
-    uses: madfam-org/enclii/.github/workflows/build-publish.yml@main
+    uses: madfam-org/enclii/.github/workflows/build-publish.yml@v1.0.0-alpha.9
     with:
       image_prefix: ghcr.io/madfam-org/bloom-scroll
       kustomization_path: infra/k8s/production
