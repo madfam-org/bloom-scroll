@@ -13,7 +13,7 @@ env:
 jobs:
   networkpolicy-port-lint:
     name: NetworkPolicy port consistency
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 3
     # Prevents the 2026-05-04 status.enclii.dev outage class:
     # NetworkPolicy `ports:` clauses that don't intersect the selected pods'
@@ -32,7 +32,7 @@ jobs:
 
   compose-config:
     name: Local Compose Config
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 3
     steps:
       - uses: actions/checkout@v7
@@ -41,7 +41,7 @@ jobs:
 
   backend-lint:
     name: Backend Lint & Type Check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: backend
@@ -70,7 +70,7 @@ jobs:
 
   backend-test:
     name: Backend Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: backend-lint
     defaults:
       run:
@@ -139,7 +139,7 @@ jobs:
 
   frontend-build:
     name: Frontend Build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: frontend
@@ -171,7 +171,7 @@ jobs:
 
   docker-build:
     name: Docker Build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [backend-test, frontend-build]
 
     steps:
