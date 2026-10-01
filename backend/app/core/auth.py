@@ -11,9 +11,11 @@ from collections.abc import Awaitable, Callable
 from typing import Any, cast
 
 import httpx
+import jwt
 from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError, jwt
+from jwt import PyJWTError
+from jwt.types import Options
 from pydantic import BaseModel, ValidationError
 
 from app.core.config import settings
@@ -23,6 +25,12 @@ security = HTTPBearer(auto_error=False)
 
 _jwks_cache: dict[str, Any] | None = None
 _jwks_cache_expires_at = 0.0
+
+# Clock skew tolerated on exp / nbf / iat, in seconds. PyJWT rejects an `iat`
+# in the future (python-jose did not), and a Janua token is verified moments
+# after it is minted, so with zero leeway any lag of this host's clock behind
+# Janua's would reject valid sessions.
+JWT_LEEWAY_SECONDS = 30
 
 
 class User(BaseModel):
@@ -57,8 +65,8 @@ def _configured_algorithm() -> str:
     return settings.JANUA_JWT_ALGORITHM.strip().upper()
 
 
-def _decode_options() -> dict[str, bool]:
-    """Build python-jose verification options from settings."""
+def _decode_options() -> Options:
+    """Build PyJWT verification options from settings."""
     return {
         "verify_exp": True,
         "verify_aud": bool(settings.JANUA_JWT_AUDIENCE),
@@ -115,13 +123,16 @@ def _decode_jwt(token: str) -> dict[str, Any]:
     if algorithm == "RS256":
         jwk = _select_jwk(token)
         if not jwk:
-            raise JWTError("No matching JWKS key")
+            raise jwt.InvalidKeyError("No matching JWKS key")
+        # The algorithm is pinned here, never taken from the JWK or the token.
+        signing_key = jwt.PyJWK(jwk, algorithm="RS256")
         return cast(dict[str, Any], jwt.decode(
             token,
-            jwk,
+            signing_key,
             algorithms=["RS256"],
             audience=audience,
             issuer=issuer,
+            leeway=JWT_LEEWAY_SECONDS,
             options=_decode_options(),
         ))
 
@@ -132,10 +143,11 @@ def _decode_jwt(token: str) -> dict[str, Any]:
             algorithms=[algorithm],
             audience=audience,
             issuer=issuer,
+            leeway=JWT_LEEWAY_SECONDS,
             options=_decode_options(),
         ))
 
-    raise JWTError(f"Unsupported Janua JWT algorithm: {algorithm}")
+    raise jwt.InvalidAlgorithmError(f"Unsupported Janua JWT algorithm: {algorithm}")
 
 
 def _payload_from_claims(payload: dict[str, Any]) -> TokenPayload:
@@ -182,7 +194,7 @@ def verify_token(token: str) -> TokenPayload | None:
     """
     try:
         return _payload_from_claims(_decode_jwt(token))
-    except (JWTError, ValueError, ValidationError, httpx.HTTPError):
+    except (PyJWTError, ValueError, ValidationError, httpx.HTTPError):
         return None
 
 
