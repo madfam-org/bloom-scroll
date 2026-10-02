@@ -285,3 +285,102 @@ def test_verify_token_rejects_garbage(monkeypatch: pytest.MonkeyPatch) -> None:
     _configure_hs256(monkeypatch)
 
     assert auth.verify_token("not-a-jwt") is None
+
+
+# --------------------------------------------------------------------------
+# JWKS cache, key rotation and required claims. Contract:
+# docs/AUTH_TOKEN_VERIFICATION.md.
+# --------------------------------------------------------------------------
+
+
+def _serve_jwks(monkeypatch: pytest.MonkeyPatch, key_sets: list[list[dict[str, Any]]]) -> list[int]:
+    """Serve successive JWKS documents, one per fetch; return the fetch counter."""
+    calls = [0]
+
+    class FakeJWKSResponse:
+        def __init__(self, keys: list[dict[str, Any]]) -> None:
+            self._keys = keys
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, Any]:
+            return {"keys": self._keys}
+
+    def fake_get(*args: Any, **kwargs: Any) -> FakeJWKSResponse:
+        keys = key_sets[min(calls[0], len(key_sets) - 1)]
+        calls[0] += 1
+        return FakeJWKSResponse(keys)
+
+    monkeypatch.setattr(auth.httpx, "get", fake_get)
+    return calls
+
+
+def test_jwks_is_fetched_once_within_cache_window(monkeypatch: pytest.MonkeyPatch) -> None:
+    private_pem, jwk = _rsa_keypair_jwk()
+    _configure_rs256(monkeypatch, jwk)
+    calls = _serve_jwks(monkeypatch, [[jwk]])
+    token = jwt.encode(_claims(), private_pem, algorithm="RS256", headers={"kid": jwk["kid"]})
+
+    assert auth.verify_token(token) is not None
+    assert auth.verify_token(token) is not None
+    assert calls[0] == 1
+
+
+def test_rotated_key_is_accepted_once_the_jwks_cache_expires(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    old_pem, old_jwk = _rsa_keypair_jwk(kid="key-2026-09")
+    new_pem, new_jwk = _rsa_keypair_jwk(kid="key-2026-10")
+    _configure_rs256(monkeypatch, old_jwk)
+    calls = _serve_jwks(monkeypatch, [[old_jwk], [old_jwk, new_jwk]])
+
+    old_token = jwt.encode(_claims(), old_pem, algorithm="RS256", headers={"kid": "key-2026-09"})
+    new_token = jwt.encode(_claims(), new_pem, algorithm="RS256", headers={"kid": "key-2026-10"})
+
+    assert auth.verify_token(old_token) is not None
+    # An unknown kid does not force a re-fetch: until the cache expires
+    # (JANUA_JWKS_CACHE_SECONDS) a token signed by a freshly rotated key fails.
+    assert auth.verify_token(new_token) is None
+    assert calls[0] == 1
+
+    monkeypatch.setattr(auth, "_jwks_cache_expires_at", 0.0)
+    assert auth.verify_token(new_token) is not None
+    assert calls[0] == 2
+
+
+def test_rs256_token_without_kid_is_rejected_when_jwks_has_several_keys(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    private_pem, jwk = _rsa_keypair_jwk(kid="a")
+    _, other_jwk = _rsa_keypair_jwk(kid="b")
+    _configure_rs256(monkeypatch, jwk)
+    _serve_jwks(monkeypatch, [[jwk, other_jwk]])
+    token = jwt.encode(_claims(), private_pem, algorithm="RS256")
+
+    assert auth.verify_token(token) is None
+
+
+def test_jwks_fetch_failure_rejects_instead_of_raising(monkeypatch: pytest.MonkeyPatch) -> None:
+    private_pem, jwk = _rsa_keypair_jwk()
+    _configure_rs256(monkeypatch, jwk)
+
+    def failing_get(*args: Any, **kwargs: Any) -> Any:
+        raise auth.httpx.ConnectError("janua unreachable")
+
+    monkeypatch.setattr(auth.httpx, "get", failing_get)
+    token = jwt.encode(_claims(), private_pem, algorithm="RS256", headers={"kid": jwk["kid"]})
+
+    assert auth.verify_token(token) is None
+
+
+@pytest.mark.parametrize("missing", ["sub", "email", "exp", "iat"])
+def test_verify_token_requires_core_claims(
+    monkeypatch: pytest.MonkeyPatch, missing: str
+) -> None:
+    _configure_hs256(monkeypatch)
+    claims = _claims(iss="janua")
+    del claims[missing]
+    token = jwt.encode(claims, "dev-secret-that-is-at-least-32-bytes", algorithm="HS256")
+
+    assert auth.verify_token(token) is None

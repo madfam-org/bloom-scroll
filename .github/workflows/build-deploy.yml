@@ -1,7 +1,7 @@
 name: Build & Deploy
 
 # Caller for the shared reusable workflow in madfam-org/enclii.
-# See: https://github.com/madfam-org/enclii/blob/main/docs/reusable-workflows.md
+# See: https://github.com/madfam-org/enclii/blob/main/docs/guides/reusable-workflows.md
 #
 # Per-service `context` is required here because bloom-scroll's
 # Dockerfiles live inside subdirectories (backend/, frontend/) with

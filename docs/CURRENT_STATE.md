@@ -55,7 +55,7 @@ This file is the evidence-backed current-state reference for the repo. Historica
 - CORS allowlist is controlled in `backend/app/main.py` by `CORS_ALLOWED_ORIGINS`. The `BACKEND_CORS_ORIGINS` setting in `backend/app/core/config.py` is currently not what the running middleware reads.
 - Database URL normalization accepts `postgres://`, `postgresql://`, `postgresql+psycopg2://`, and `postgresql+psycopg://`, converting them to `postgresql+asyncpg://`.
 - Sentence-BERT embeddings are implemented via `backend/app/analysis/processor.py`.
-- Janua authentication verifies RS256 tokens through `JANUA_JWKS_URI` with issuer and optional audience checks. HS algorithms are still supported only when explicitly configured for legacy development.
+- Janua authentication verifies RS256 tokens through `JANUA_JWKS_URI` with issuer and optional audience checks, using PyJWT (`python-jose` was removed on 2026-10-01, #127). HS algorithms are still supported only when explicitly configured for legacy development. Full contract: [AUTH_TOKEN_VERIFICATION.md](AUTH_TOKEN_VERIFICATION.md).
 - OpenAlex ingestion is implemented in `backend/app/ingestion/openalex.py` and exposes source identifiers, authors, abstracts, concepts, citation counts, and PDF URLs in the card payload.
 - Bias detection is still a placeholder returning `None`.
 - Celery is scaffolded, but `ingest_owid_all_task` returns `{"status": "not_implemented"}`.
@@ -224,6 +224,24 @@ Operator follow-ups required to activate all of the above in production:
 5. To activate error telemetry: set `SENTRY_DSN` in the secret.
 6. Apply `internal-devops/grafana/service-monitors/bloom-scroll-api.yaml`
    to the monitoring namespace after deploy.
+
+## 2026-10-01 Close-out (dependency wave)
+
+- #127: Janua token verification moved from `python-jose` to PyJWT[crypto]
+  2.15.1 (`kid`-matched JWKS key, algorithm pinned to RS256, issuer, optional
+  audience, 30 s leeway). `python-jose`, `ecdsa`, `rsa` and `pyasn1` left the
+  runtime image. anyio 4.15.1 and urllib3 2.8.0. SQLAlchemy is pinned
+  `>=2.0.23,<2.1`. The root `package-lock.json` (dev tooling only, in no image)
+  was refreshed with `npm audit fix`.
+- #128: every GitHub-hosted job runs on `ubuntu-24.04` instead of
+  `ubuntu-latest`, ahead of GitHub moving `ubuntu-latest` to Ubuntu 26 on
+  2026-10-19.
+- Verification contract and its gaps (opt-in `aud`, no JWKS refresh on unknown
+  `kid`): [AUTH_TOKEN_VERIFICATION.md](AUTH_TOKEN_VERIFICATION.md).
+- `poetry run pytest -q`: 97 passed (2026-10-01, local).
+- Deploy note: `build-deploy.yml` ignores `**.md` and `docs/**`; a change under
+  `backend/` rebuilds `api`, under `frontend/` rebuilds `web`. A root
+  lockfile-only change runs the workflow but builds neither service.
 
 ## Recommended Next Work
 
