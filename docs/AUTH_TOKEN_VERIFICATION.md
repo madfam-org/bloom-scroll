@@ -1,7 +1,8 @@
 # Janua token verification
 
-Status: current as of 2026-10-01 (after #127, which replaced `python-jose` with
-PyJWT). This page describes `backend/app/core/auth.py` on `main`; change it in
+Status: current as of 2026-10-02 (after #127, which replaced `python-jose` with
+PyJWT, and the verifier hardening that made the audience fail closed and added
+the re-fetch on an unknown `kid`). This page describes `backend/app/core/auth.py` on `main`; change it in
 the same PR as any change to that module.
 
 Bloom Scroll's API verifies Janua access tokens offline, against Janua's
@@ -10,6 +11,10 @@ published JWKS. It never calls Janua on the request path.
 ## Janua side of the contract
 
 Janua defines the issuer, the JWKS endpoint and the token shape:
+
+- [janua `docs/reference/ISSUER_AND_JWKS.md`](https://github.com/madfam-org/janua/blob/main/docs/reference/ISSUER_AND_JWKS.md):
+  one RS256 key with a `kid`, rotation as a hard cut with no overlap, and which
+  `aud` each token type carries.
 
 - [janua `docs/service-tokens.md`](https://github.com/madfam-org/janua/blob/main/docs/service-tokens.md),
   sections "Endpoints" (issuer `https://auth.madfam.io`, JWKS at
@@ -28,20 +33,27 @@ Janua defines the issuer, the JWKS endpoint and the token shape:
    `PyJWK(jwk, algorithm="RS256")`. `alg: none`, HS256 signed with the RSA
    public key, and any other algorithm fail.
 2. **Key selection.** The JWK whose `kid` equals the header `kid`. A token with
-   no `kid` is accepted only when the JWKS holds exactly one key. No match means
-   rejection.
-3. **JWKS cache.** The JWKS is fetched from `JANUA_JWKS_URI` (default
-   `https://auth.madfam.io/.well-known/jwks.json`, 5 s timeout) and cached for
-   `JANUA_JWKS_CACHE_SECONDS` (default 300). An unknown `kid` does **not** force
-   a re-fetch, so after a Janua key rotation tokens signed with the new key are
-   rejected until the cache expires (at most 300 s by default). A failed fetch
-   rejects the token.
+   no `kid` is rejected (Janua names its key in every token). The JWK must be an
+   RSA key whose `alg` is `RS256` (or absent) and whose `use` is `sig` (or
+   absent). No match means rejection.
+3. **JWKS cache and rotation.** The JWKS is fetched from `JANUA_JWKS_URI`
+   (default `https://auth.madfam.io/.well-known/jwks.json`, 5 s timeout) and
+   cached for `JANUA_JWKS_CACHE_SECONDS` (default 300). Janua rotates with a hard
+   cut, so a `kid` missing from the cached set forces **one** re-fetch,
+   bypassing the cache, before the token is rejected. Forced re-fetches are
+   limited to one per 60 s per process
+   (`JWKS_FORCED_REFRESH_MIN_INTERVAL_SECONDS`), so forged `kid` values cannot
+   turn into a stream of requests to Janua; inside that window an unknown `kid`
+   is rejected without a fetch. A failed fetch rejects the token.
 4. **Claims.**
-   - `exp` is verified.
+   - `exp` is required and verified.
    - `iss` is verified when `JANUA_JWT_ISSUER` is set (default
      `https://auth.madfam.io`).
-   - `aud` is verified only when `JANUA_JWT_AUDIENCE` is set. The default is
-     empty, so the audience is **not** checked unless the deployment sets it.
+   - `aud` must contain `JANUA_JWT_AUDIENCE` when it is set. When it is empty
+     and `JANUA_JWT_AUDIENCE_REQUIRED` is true (the default), **every** Janua
+     token is rejected (fail closed): without an audience, any token Janua
+     issues to any client would verify here. `JANUA_JWT_AUDIENCE_REQUIRED=false`
+     restores the unchecked behaviour, for local development only.
    - `sub`, `email`, `exp` and `iat` must be present (`_payload_from_claims`).
 5. **Leeway.** 30 s (`JWT_LEEWAY_SECONDS`) on `exp`, `nbf` and `iat`. PyJWT
    rejects an `iat` in the future, and a token is verified moments after Janua
@@ -55,7 +67,9 @@ Janua defines the issuer, the JWKS endpoint and the token shape:
 - `AUTH_ENABLED=false` (default `true`) skips verification and returns a fixed
   development user. Local development only.
 - Mutating endpoints also accept the `INGEST_API_KEY` service key in
-  `X-API-Key` (`require_write_access`), compared in constant time.
+  `X-API-Key` (`require_write_access`), compared in constant time. This path
+  does not depend on the audience, so the ingestion CronJob keeps working while
+  `JANUA_JWT_AUDIENCE` is unset.
 
 ## Configuration
 
@@ -63,20 +77,27 @@ Janua defines the issuer, the JWKS endpoint and the token shape:
 |---|---|---|
 | `JANUA_JWKS_URI` | `https://auth.madfam.io/.well-known/jwks.json` | |
 | `JANUA_JWT_ISSUER` | `https://auth.madfam.io` | Empty disables the `iss` check |
-| `JANUA_JWT_AUDIENCE` | empty | Set it to enforce `aud` |
+| `JANUA_JWT_AUDIENCE` | empty | The `aud` Janua issues for this API; see "Open owner check" |
+| `JANUA_JWT_AUDIENCE_REQUIRED` | `true` | With an empty audience, rejects every Janua token. `false` only for local dev |
 | `JANUA_JWT_ALGORITHM` | `RS256` | `HS*` only for legacy local dev |
 | `JANUA_JWT_SECRET` | dev placeholder | Used only with `HS*` |
-| `JANUA_JWKS_CACHE_SECONDS` | `300` | Upper bound on key-rotation lag |
+| `JANUA_JWKS_CACHE_SECONDS` | `300` | Cache TTL; an unknown `kid` re-fetches early (one per 60 s) |
 | `AUTH_ENABLED` | `true` | `false` only for local dev |
 
 ## Tests
 
 `backend/tests/test_auth.py` pins every step above: valid RS256 via JWKS,
-unknown `kid`, no-`kid` with one key and with several keys, forged signature,
-tampered payload, `alg: none`, HS256 key confusion, expiry, wrong issuer,
-audience enforced and ignored, HS algorithm other than the configured one,
-`iat` skew inside and beyond the leeway, missing core claims, JWKS cache reuse,
-key rotation after cache expiry, and JWKS fetch failure.
+unknown `kid`, no `kid` with one key and with several keys, a JWK with another
+`alg`, `use` or key type, forged signature, tampered payload, `alg: none`,
+HS256 key confusion, RS512, expiry and expiry inside the leeway, wrong or
+missing issuer, missing `exp`, audience enforced (string and list `aud`, wrong
+and missing `aud`), the fail-closed default with no audience configured (also
+through `require_write_access`), the explicit opt-out, HS algorithm other than
+the configured one, `iat` skew inside and beyond the leeway, missing core
+claims, JWKS cache reuse, and the forced re-fetch: a rotated key verifies
+inside the cache window, an unknown `kid` re-fetches once and is rejected, a
+known `kid` never re-fetches, forged `kid`s are rate-limited, and the re-fetch
+is allowed again after the interval.
 
 ## Dependencies
 
@@ -86,9 +107,21 @@ key rotation after cache expiry, and JWKS fetch failure.
 - `sqlalchemy >=2.0.23,<2.1`: SQLAlchemy 2.1 defaults `postgresql://` to
   psycopg v3 and stops installing `greenlet`.
 
+## Open owner check
+
+No Janua OAuth client for Bloom Scroll is registered or referenced in any
+repository: the Flutter frontend has no sign-in, and the ingestion CronJob uses
+`X-API-Key`. So the `aud` value this API should accept cannot be derived from
+code, and it is not guessed here. Until an owner registers the client (or
+names the existing one) and sets `JANUA_JWT_AUDIENCE` in `bloom-scroll-secrets`
+to the audience Janua issues to it, every Janua bearer token is rejected with
+401. Janua's rule (see `ISSUER_AND_JWKS.md`): an ID token carries the
+`client_id`; access and service tokens carry the client's audience, falling
+back to Janua's `JWT_AUDIENCE`.
+
 ## Known gaps
 
-1. `aud` is not enforced unless `JANUA_JWT_AUDIENCE` is set; no tracked
-   manifest sets it.
-2. An unknown `kid` does not trigger a JWKS refresh, so key rotation can reject
-   valid tokens for up to `JANUA_JWKS_CACHE_SECONDS`.
+1. Janua bearer tokens are rejected in production until the audience above is
+   set. Service writes through `X-API-Key` are unaffected.
+2. A rotated `kid` that arrives within 60 s of the previous forced re-fetch is
+   rejected until the next allowed re-fetch or the cache expiry.

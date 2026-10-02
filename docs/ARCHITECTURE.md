@@ -478,7 +478,7 @@ class BloomCard {
 - **No user tracking sold to third parties** is a product principle.
 - Frontend read count and read card IDs are stored locally with `shared_preferences`.
 - Server-side interaction tracking exists at `/api/v1/interactions/*`, but user data export/delete APIs are not implemented in this repo.
-- Janua auth verifies production RS256 tokens through JWKS, issuer, and optional audience checks (PyJWT; contract in [AUTH_TOKEN_VERIFICATION.md](AUTH_TOKEN_VERIFICATION.md)). HS algorithms are retained only as an explicit local development fallback.
+- Janua auth verifies production RS256 tokens through JWKS, issuer checks, and a fail-closed audience check (PyJWT; contract in [AUTH_TOKEN_VERIFICATION.md](AUTH_TOKEN_VERIFICATION.md)). HS algorithms are retained only as an explicit local development fallback.
 
 ### Rate Limiting
 - Application-level API rate limiting is not implemented.

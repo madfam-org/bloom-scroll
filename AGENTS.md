@@ -41,9 +41,11 @@ redirect and should not become the source of truth again.
 
 - **Auth.** `backend/app/core/auth.py` verifies Janua tokens with PyJWT
   (`python-jose` was removed in #127; do not reintroduce it): JWKS key matched
-  by `kid`, algorithm pinned to RS256 from config, `iss` checked, `aud` checked
-  only when `JANUA_JWT_AUDIENCE` is set, 30 s leeway, `sub`/`email`/`exp`/`iat`
-  required. Contract and gaps: `docs/AUTH_TOKEN_VERIFICATION.md`. Janua side:
+  by `kid` (required; an unknown `kid` re-fetches the JWKS once, at most one
+  per 60 s), algorithm pinned to RS256 from config, `iss` checked, `aud` must
+  match `JANUA_JWT_AUDIENCE`; while that is empty every Janua token is rejected
+  (fail closed, `JANUA_JWT_AUDIENCE_REQUIRED`), 30 s leeway,
+  `sub`/`email`/`exp`/`iat` required. Contract and gaps: `docs/AUTH_TOKEN_VERIFICATION.md`. Janua side:
   https://github.com/madfam-org/janua/blob/main/docs/service-tokens.md
 - **Dependencies.** SQLAlchemy pinned `>=2.0.23,<2.1`; PyJWT `>=2.15.1,<3`;
   heavy ML wheels pinned separately in `backend/requirements-ml-linux-cpu.txt`.
@@ -337,7 +339,8 @@ SERENDIPITY_FACTOR=0.5
 # Janua auth (see docs/AUTH_TOKEN_VERIFICATION.md)
 JANUA_JWKS_URI=https://auth.madfam.io/.well-known/jwks.json
 JANUA_JWT_ISSUER=https://auth.madfam.io
-JANUA_JWT_AUDIENCE=            # empty = aud not checked
+JANUA_JWT_AUDIENCE=            # empty = every Janua token rejected (fail closed)
+JANUA_JWT_AUDIENCE_REQUIRED=true  # false only for local dev
 JANUA_JWT_ALGORITHM=RS256
 JANUA_JWKS_CACHE_SECONDS=300
 AUTH_ENABLED=true              # false only for local dev

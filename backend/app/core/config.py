@@ -47,7 +47,12 @@ class Settings(BaseSettings):
     JANUA_API_URL: str = "https://auth.madfam.io/api/v1"
     JANUA_JWKS_URI: str = "https://auth.madfam.io/.well-known/jwks.json"
     JANUA_JWT_ISSUER: str = "https://auth.madfam.io"
+    # The `aud` value Janua puts in tokens issued for this API. While it is
+    # empty and JANUA_JWT_AUDIENCE_REQUIRED is true, every Janua bearer token is
+    # rejected (fail closed); the X-API-Key service path is unaffected.
+    # See docs/AUTH_TOKEN_VERIFICATION.md.
     JANUA_JWT_AUDIENCE: str = ""
+    JANUA_JWT_AUDIENCE_REQUIRED: bool = True
     JANUA_JWT_SECRET: str = "dev-shared-janua-secret-32chars"
     JANUA_JWT_ALGORITHM: str = "RS256"
     JANUA_JWKS_CACHE_SECONDS: int = 300

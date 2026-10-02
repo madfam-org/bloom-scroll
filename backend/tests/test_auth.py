@@ -67,9 +67,13 @@ def _configure_rs256(monkeypatch: pytest.MonkeyPatch, jwk: dict[str, Any]) -> No
     monkeypatch.setattr(auth.settings, "JANUA_JWKS_URI", "https://auth.madfam.io/.well-known/jwks.json")
     monkeypatch.setattr(auth.settings, "JANUA_JWT_ISSUER", "https://auth.madfam.io")
     monkeypatch.setattr(auth.settings, "JANUA_JWT_AUDIENCE", "")
+    # Most cases here exercise key and claim handling, not the audience; the
+    # fail-closed audience default is covered by the audience tests below.
+    monkeypatch.setattr(auth.settings, "JANUA_JWT_AUDIENCE_REQUIRED", False)
     monkeypatch.setattr(auth.settings, "JANUA_JWKS_CACHE_SECONDS", 300)
     monkeypatch.setattr(auth, "_jwks_cache", None)
     monkeypatch.setattr(auth, "_jwks_cache_expires_at", 0.0)
+    monkeypatch.setattr(auth, "_jwks_forced_refresh_at", None)
     monkeypatch.setattr(auth.httpx, "get", lambda *args, **kwargs: FakeJWKSResponse())
 
 
@@ -109,6 +113,7 @@ def test_verify_token_supports_explicit_legacy_hs256(monkeypatch: pytest.MonkeyP
     monkeypatch.setattr(auth.settings, "JANUA_JWT_SECRET", "dev-secret")
     monkeypatch.setattr(auth.settings, "JANUA_JWT_ISSUER", "janua")
     monkeypatch.setattr(auth.settings, "JANUA_JWT_AUDIENCE", "")
+    monkeypatch.setattr(auth.settings, "JANUA_JWT_AUDIENCE_REQUIRED", False)
     token = jwt.encode(
         _claims(iss="janua"),
         "dev-secret",
@@ -130,6 +135,7 @@ def _configure_hs256(monkeypatch: pytest.MonkeyPatch, audience: str = "") -> Non
     monkeypatch.setattr(auth.settings, "JANUA_JWT_SECRET", "dev-secret-that-is-at-least-32-bytes")
     monkeypatch.setattr(auth.settings, "JANUA_JWT_ISSUER", "janua")
     monkeypatch.setattr(auth.settings, "JANUA_JWT_AUDIENCE", audience)
+    monkeypatch.setattr(auth.settings, "JANUA_JWT_AUDIENCE_REQUIRED", False)
 
 
 def _hs256_token(**overrides: Any) -> str:
@@ -140,17 +146,15 @@ def _hs256_token(**overrides: Any) -> str:
     )
 
 
-def test_verify_token_accepts_rs256_without_kid_when_jwks_has_one_key(
+def test_verify_token_rejects_rs256_without_kid_even_when_jwks_has_one_key(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Janua names its key in every token; a token without `kid` is rejected."""
     private_pem, jwk = _rsa_keypair_jwk()
     _configure_rs256(monkeypatch, jwk)
     token = jwt.encode(_claims(), private_pem, algorithm="RS256")
 
-    payload = auth.verify_token(token)
-
-    assert payload is not None
-    assert payload.sub == "user_123"
+    assert auth.verify_token(token) is None
 
 
 def test_verify_token_rejects_rs256_signed_by_another_key(
@@ -327,25 +331,26 @@ def test_jwks_is_fetched_once_within_cache_window(monkeypatch: pytest.MonkeyPatc
     assert calls[0] == 1
 
 
-def test_rotated_key_is_accepted_once_the_jwks_cache_expires(
+def test_rotated_key_is_accepted_after_one_forced_refetch(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Janua rotates with a hard cut: an unknown kid re-fetches the JWKS once."""
     old_pem, old_jwk = _rsa_keypair_jwk(kid="key-2026-09")
     new_pem, new_jwk = _rsa_keypair_jwk(kid="key-2026-10")
     _configure_rs256(monkeypatch, old_jwk)
-    calls = _serve_jwks(monkeypatch, [[old_jwk], [old_jwk, new_jwk]])
+    calls = _serve_jwks(monkeypatch, [[old_jwk], [new_jwk]])
 
     old_token = jwt.encode(_claims(), old_pem, algorithm="RS256", headers={"kid": "key-2026-09"})
     new_token = jwt.encode(_claims(), new_pem, algorithm="RS256", headers={"kid": "key-2026-10"})
 
     assert auth.verify_token(old_token) is not None
-    # An unknown kid does not force a re-fetch: until the cache expires
-    # (JANUA_JWKS_CACHE_SECONDS) a token signed by a freshly rotated key fails.
-    assert auth.verify_token(new_token) is None
     assert calls[0] == 1
-
-    monkeypatch.setattr(auth, "_jwks_cache_expires_at", 0.0)
+    # Inside the cache window, the new kid forces exactly one re-fetch.
     assert auth.verify_token(new_token) is not None
+    assert calls[0] == 2
+    # The refreshed set is cached; the retired key is gone with the hard cut.
+    assert auth.verify_token(new_token) is not None
+    assert auth.verify_token(old_token) is None
     assert calls[0] == 2
 
 
@@ -384,3 +389,182 @@ def test_verify_token_requires_core_claims(
     token = jwt.encode(claims, "dev-secret-that-is-at-least-32-bytes", algorithm="HS256")
 
     assert auth.verify_token(token) is None
+
+
+def test_unknown_kid_refetches_once_then_rejects(monkeypatch: pytest.MonkeyPatch) -> None:
+    private_pem, jwk = _rsa_keypair_jwk(kid="known-key")
+    _configure_rs256(monkeypatch, jwk)
+    calls = _serve_jwks(monkeypatch, [[jwk]])
+    known = jwt.encode(_claims(), private_pem, algorithm="RS256", headers={"kid": "known-key"})
+    forged = jwt.encode(_claims(), private_pem, algorithm="RS256", headers={"kid": "forged"})
+
+    assert auth.verify_token(known) is not None
+    assert calls[0] == 1
+    assert auth.verify_token(forged) is None
+    assert calls[0] == 2
+
+
+def test_known_kid_never_forces_a_refetch(monkeypatch: pytest.MonkeyPatch) -> None:
+    private_pem, jwk = _rsa_keypair_jwk()
+    _configure_rs256(monkeypatch, jwk)
+    calls = _serve_jwks(monkeypatch, [[jwk]])
+    token = jwt.encode(_claims(), private_pem, algorithm="RS256", headers={"kid": jwk["kid"]})
+
+    for _ in range(5):
+        assert auth.verify_token(token) is not None
+    assert calls[0] == 1
+    assert auth._jwks_forced_refresh_at is None
+
+
+def test_forged_kids_are_rate_limited_to_one_refetch(monkeypatch: pytest.MonkeyPatch) -> None:
+    private_pem, jwk = _rsa_keypair_jwk()
+    _configure_rs256(monkeypatch, jwk)
+    calls = _serve_jwks(monkeypatch, [[jwk]])
+
+    for kid in ("forged-1", "forged-2", "forged-3"):
+        token = jwt.encode(_claims(), private_pem, algorithm="RS256", headers={"kid": kid})
+        assert auth.verify_token(token) is None
+    # One normal fetch plus a single forced re-fetch for all three forged kids.
+    assert calls[0] == 2
+
+
+def test_forced_refetch_is_allowed_again_after_the_interval(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    private_pem, jwk = _rsa_keypair_jwk()
+    _configure_rs256(monkeypatch, jwk)
+    calls = _serve_jwks(monkeypatch, [[jwk]])
+    forged = jwt.encode(_claims(), private_pem, algorithm="RS256", headers={"kid": "forged"})
+
+    assert auth.verify_token(forged) is None
+    assert calls[0] == 2
+    assert auth.verify_token(forged) is None
+    assert calls[0] == 2
+
+    assert auth._jwks_forced_refresh_at is not None
+    monkeypatch.setattr(
+        auth,
+        "_jwks_forced_refresh_at",
+        auth._jwks_forced_refresh_at - auth.JWKS_FORCED_REFRESH_MIN_INTERVAL_SECONDS - 1,
+    )
+    assert auth.verify_token(forged) is None
+    assert calls[0] == 3
+
+
+@pytest.mark.parametrize(
+    "override",
+    [{"alg": "RS512"}, {"use": "enc"}, {"kty": "oct"}],
+    ids=["other-alg", "enc-use", "non-rsa"],
+)
+def test_jwk_not_usable_for_rs256_signatures_is_rejected(
+    monkeypatch: pytest.MonkeyPatch, override: dict[str, str]
+) -> None:
+    private_pem, jwk = _rsa_keypair_jwk()
+    _configure_rs256(monkeypatch, {**jwk, **override})
+    token = jwt.encode(_claims(), private_pem, algorithm="RS256", headers={"kid": jwk["kid"]})
+
+    assert auth.verify_token(token) is None
+
+
+def test_verify_token_rejects_rs512_signed_with_the_janua_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    private_pem, jwk = _rsa_keypair_jwk()
+    _configure_rs256(monkeypatch, jwk)
+    token = jwt.encode(_claims(), private_pem, algorithm="RS512", headers={"kid": jwk["kid"]})
+
+    assert auth.verify_token(token) is None
+
+
+def test_verify_token_accepts_expiry_inside_the_leeway(monkeypatch: pytest.MonkeyPatch) -> None:
+    private_pem, jwk = _rsa_keypair_jwk()
+    _configure_rs256(monkeypatch, jwk)
+    now = int(time.time())
+    token = jwt.encode(
+        _claims(iat=now - 300, exp=now - 10),
+        private_pem,
+        algorithm="RS256",
+        headers={"kid": jwk["kid"]},
+    )
+
+    assert auth.verify_token(token) is not None
+
+
+@pytest.mark.parametrize("missing", ["exp", "iss"])
+def test_rs256_token_missing_exp_or_iss_is_rejected(
+    monkeypatch: pytest.MonkeyPatch, missing: str
+) -> None:
+    private_pem, jwk = _rsa_keypair_jwk()
+    _configure_rs256(monkeypatch, jwk)
+    claims = _claims()
+    del claims[missing]
+    token = jwt.encode(claims, private_pem, algorithm="RS256", headers={"kid": jwk["kid"]})
+
+    assert auth.verify_token(token) is None
+
+
+# --------------------------------------------------------------------------
+# Audience: enforced when JANUA_JWT_AUDIENCE is set; fail closed when it is
+# not, unless JANUA_JWT_AUDIENCE_REQUIRED=false.
+# --------------------------------------------------------------------------
+
+
+def test_audience_is_required_by_default() -> None:
+    from app.core.config import Settings
+
+    assert Settings.model_fields["JANUA_JWT_AUDIENCE_REQUIRED"].default is True
+    assert Settings.model_fields["JANUA_JWT_AUDIENCE"].default == ""
+
+
+def test_unset_audience_rejects_every_token_when_required(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    private_pem, jwk = _rsa_keypair_jwk()
+    _configure_rs256(monkeypatch, jwk)
+    monkeypatch.setattr(auth.settings, "JANUA_JWT_AUDIENCE_REQUIRED", True)
+
+    for claims in (_claims(), _claims(aud="any-client"), _claims(aud=["a", "b"])):
+        token = jwt.encode(claims, private_pem, algorithm="RS256", headers={"kid": jwk["kid"]})
+        assert auth.verify_token(token) is None
+
+
+def test_unset_audience_fails_closed_on_the_write_dependency(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import asyncio
+
+    from fastapi import HTTPException
+    from fastapi.security import HTTPAuthorizationCredentials
+
+    private_pem, jwk = _rsa_keypair_jwk()
+    _configure_rs256(monkeypatch, jwk)
+    monkeypatch.setattr(auth.settings, "JANUA_JWT_AUDIENCE_REQUIRED", True)
+    monkeypatch.setattr(auth.settings, "AUTH_ENABLED", True)
+    token = jwt.encode(
+        _claims(aud="any-client"), private_pem, algorithm="RS256", headers={"kid": jwk["kid"]}
+    )
+    credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
+
+    with pytest.raises(HTTPException) as excinfo:
+        asyncio.run(auth.require_write_access(credentials=credentials, x_api_key=None))
+    assert excinfo.value.status_code == 401
+
+
+@pytest.mark.parametrize("required", [True, False])
+def test_configured_audience_is_enforced_on_rs256(
+    monkeypatch: pytest.MonkeyPatch, required: bool
+) -> None:
+    private_pem, jwk = _rsa_keypair_jwk()
+    _configure_rs256(monkeypatch, jwk)
+    monkeypatch.setattr(auth.settings, "JANUA_JWT_AUDIENCE", "bloom-scroll-test")
+    monkeypatch.setattr(auth.settings, "JANUA_JWT_AUDIENCE_REQUIRED", required)
+
+    def token(**overrides: Any) -> str:
+        return jwt.encode(
+            _claims(**overrides), private_pem, algorithm="RS256", headers={"kid": jwk["kid"]}
+        )
+
+    assert auth.verify_token(token(aud="bloom-scroll-test")) is not None
+    assert auth.verify_token(token(aud=["other", "bloom-scroll-test"])) is not None
+    assert auth.verify_token(token(aud="another-app")) is None
+    assert auth.verify_token(token()) is None
