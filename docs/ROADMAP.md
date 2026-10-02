@@ -396,35 +396,39 @@ are only emitted/displayed when `score_provenance` is set — 2026-07-16 audit D
    until DSN set), Prometheus `/metrics` + ServiceMonitor + NetworkPolicy
 9. ✅ Celery scaffold removed (CronJob is the scheduler)
 
-### Immediate (Week 1)
-1. ✅ Complete STORY-007 implementation
-2. ✅ Update all documentation
-3. ✅ Repair STORY-005 test imports/endpoints
-4. ✅ Hide production `/docs` and `/openapi.json`
-5. ✅ Commit backend dependency lockfile without regressing CPU-only Linux images
-6. 🔜 Add frontend stress tests and end-to-end testing
-7. 🔜 Add production observability and load/soak testing
+### Completed 2026-10-01/02 (dependency and auth waves)
+1. ✅ PyJWT replaces `python-jose` for Janua tokens (#127)
+2. ✅ GitHub-hosted CI pinned to `ubuntu-24.04` (#128)
+3. ✅ Janua audience fails closed, `kid` required, rate-limited JWKS re-fetch on
+   an unknown `kid` (#130); contract in
+   [AUTH_TOKEN_VERIFICATION.md](AUTH_TOKEN_VERIFICATION.md)
 
-### Short Term (Weeks 2-4)
-- [ ] Complete STORY-005 acceptance criteria
-- [ ] Add more OWID datasets (renewable energy, poverty, education)
-- [ ] Expand Are.na channels for aesthetic diversity
-- [ ] Performance profiling (Flutter DevTools)
-- [ ] Production hardening and observability cleanup
+## Pending work
 
-### Medium Term (Months 2-3)
-- [x] Integrate OpenAlex (science papers)
-- [ ] Real bias detection with PoliticalBiasBERT
-- [ ] Constructiveness scoring model
-- [ ] User authentication & profiles
-- [ ] Reading history analytics
+The single, current pending-work list for this repository (as of 2026-10-02).
+`AGENTS.md`, `llms.txt`, `llms-full.txt` and `CURRENT_STATE.md` point here; add
+or close items here only. Kind is **owner** (a decision or provisioning step
+only the owner can take) or **eng** (engineering work).
 
-### Long Term (Months 4-6)
-- [ ] Neocities integration (indie web)
-- [ ] TVTropes integration (narrative analysis)
-- [ ] My-MOOC integration (education)
-- [ ] Blindspot clustering algorithm
-- [ ] Public beta launch
+| # | Item | Why it matters | Priority | Kind | Link |
+|---|------|----------------|----------|------|------|
+| 1 | Register Bloom Scroll's Janua OAuth client and set `JANUA_JWT_AUDIENCE` when sign-in ships | Since #130 every Janua bearer token is rejected while the audience is empty (fail closed by design). `X-API-Key` service writes are unaffected | P2 | owner | #130, [AUTH_TOKEN_VERIFICATION.md § Open owner check](AUTH_TOKEN_VERIFICATION.md#open-owner-check) |
+| 2 | Decide on user sign-in and profiles | The Flutter app has no sign-in, so per-user history, saves and blindspots have no user to attach to. Item 1 depends on it | P2 | owner | — |
+| 3 | Set `SELVA_BASE_URL` (plus key and model) in the production secret | Perspective scoring is wired but dormant without it; cards show "analysis not yet available" | P2 | owner | [CURRENT_STATE.md](CURRENT_STATE.md#2026-07-16-remediation-phase-01-of-the-vision-gap-plan) |
+| 4 | Set `SENTRY_DSN` and alert on `/health` `checks.freshness` | The Sentry SDK is dormant without a DSN, and a stale feed (newest card older than 48 h) does not flip `/health` | P2 | owner (DSN), eng (alert) | — |
+| 5 | Frontend end-to-end and stress tests | `frontend/test/` holds unit tests only; finite-feed completion, pagination, production API base and error paths have no E2E coverage | P2 | eng | — |
+| 6 | Load and soak tests for feed, health and ingestion | No evidence of behaviour at larger card and vector counts | P3 | eng | — |
+| 7 | pgvector benchmark at 100k+ vectors | Serendipity now runs in SQL over the whole corpus; its cost at scale is unmeasured | P3 | eng | — |
+| 8 | Blindspot clustering and a per-user blindspot view | STORY-004's bias/blindspot half is still open; scoring exists, the per-user view does not | P3 | eng | [STORY-004](STORY-004-IMPLEMENTATION.md) |
+| 9 | My-MOOC connector | The sixth PRD content type; blocked on a scraping-policy decision | P3 | owner | — |
+| 10 | Triage open Dependabot PRs | #126 (Enclii reusable workflow), #123 (Python group), #119 and #118 (Flutter majors) | P3 | eng | #126, #123, #119, #118 |
+| 11 | Drop Milvus from `infrastructure/docker-compose.yml` and `.env.example` | Embeddings live in PostgreSQL + pgvector; Milvus is unused local weight | P3 | eng | — |
+| 12 | Small refactors: modular OWID connector, shared chart theme | Maintainability only | P3 | eng | — |
+| 13 | Public beta launch | Product decision after items 1–5 | P3 | owner | — |
+
+Accepted, not planned: a rotated `kid` that arrives within 60 s of the previous
+forced JWKS re-fetch is rejected until the next allowed re-fetch (see
+[AUTH_TOKEN_VERIFICATION.md § Known gaps](AUTH_TOKEN_VERIFICATION.md#known-gaps)).
 
 ---
 
@@ -432,7 +436,7 @@ are only emitted/displayed when `score_provenance` is set — 2026-07-16 audit D
 
 | Risk | Impact | Mitigation | Status |
 |------|--------|------------|--------|
-| pgvector performance degrades with scale | High | Benchmark with 100k+ vectors, optimize indexes | Partially addressed (HNSW migration exists; current algorithm filters candidates in Python) |
+| pgvector performance degrades with scale | High | Benchmark with 100k+ vectors, optimize indexes | Partially addressed (HNSW migration exists; serendipity filtering runs in SQL since 2026-07-16; benchmark pending, item 7) |
 | OWID API rate limits | Medium | Cache datasets, batch fetch overnight | ✅ No limits observed |
 | Are.na API instability | Low | Fallback to local cache, graceful degradation | ⏳ To monitor |
 | Flutter performance on low-end devices | Medium | Profile on older Android devices, optimize | 🔜 Planned |
@@ -449,14 +453,11 @@ are only emitted/displayed when `score_provenance` is set — 2026-07-16 audit D
 
 ### Code Quality
 - **Test coverage**: Not currently verified in this audit
-- **Backend test signal**: `poetry run pytest -q` passes 28 tests
+- **Backend test signal**: `poetry run pytest -q` passes 113 tests; `flutter test` passes 12 (CI on `main`, 2026-10-02)
 - **Documentation**: Current-state reference added in `docs/CURRENT_STATE.md`
 
 ### Technical Debt
-- [ ] Refactor OWID connector for modularity
-- [ ] Extract chart config into shared theme
-- [ ] Add integration tests for feed pagination
-- [ ] Implement proper error logging (Sentry)
+Tracked in [Pending work](#pending-work) (items 5, 11 and 12).
 
 ---
 
@@ -479,6 +480,6 @@ are only emitted/displayed when `score_provenance` is set — 2026-07-16 audit D
 
 ---
 
-**Version**: 1.2
-**Last Updated**: 2026-07-16
+**Version**: 1.3
+**Last Updated**: 2026-10-02
 **Maintained by**: Project team

@@ -43,7 +43,7 @@ gap or incident link.
 - `infra/`
 - `.github/workflows/`
 
-## Current facts (verified 2026-10-01)
+## Current facts (verified 2026-10-02)
 
 - API: FastAPI in `backend/`, Janua tokens verified offline with PyJWT against
   the Janua JWKS (`kid` required and matched, one rate-limited re-fetch on an unknown `kid`,
@@ -56,6 +56,9 @@ gap or incident link.
 - CI: GitHub-hosted `ubuntu-24.04` runners.
 - Deploy: `.github/workflows/build-deploy.yml` (Enclii reusable workflow), then
   `scripts/prod-smoke.sh`.
+- Pending work: one list, `docs/ROADMAP.md` section "Pending work" (priority,
+  owner vs engineering). First item: Janua bearer tokens are rejected until an
+  owner registers the client and sets `JANUA_JWT_AUDIENCE` (#130).
 
 ## Maintenance
 
