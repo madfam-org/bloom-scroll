@@ -37,6 +37,30 @@ redirect and should not become the source of truth again.
 - `infra/`
 - `.github/workflows/`
 
+## Repo facts (verified 2026-10-01)
+
+- **Auth.** `backend/app/core/auth.py` verifies Janua tokens with PyJWT
+  (`python-jose` was removed in #127; do not reintroduce it): JWKS key matched
+  by `kid`, algorithm pinned to RS256 from config, `iss` checked, `aud` checked
+  only when `JANUA_JWT_AUDIENCE` is set, 30 s leeway, `sub`/`email`/`exp`/`iat`
+  required. Contract and gaps: `docs/AUTH_TOKEN_VERIFICATION.md`. Janua side:
+  https://github.com/madfam-org/janua/blob/main/docs/service-tokens.md
+- **Dependencies.** SQLAlchemy pinned `>=2.0.23,<2.1`; PyJWT `>=2.15.1,<3`;
+  heavy ML wheels pinned separately in `backend/requirements-ml-linux-cpu.txt`.
+- **CI.** All GitHub-hosted jobs run on `ubuntu-24.04` (not `ubuntu-latest`).
+- **Deploys.** `build-deploy.yml` ignores `**.md` and `docs/**`; `backend/`
+  rebuilds `api`, `frontend/` rebuilds `web`; a production smoke
+  (`scripts/prod-smoke.sh`) polls after each build.
+
+## Related repositories / contracts
+
+- Janua issuer, JWKS, token shape:
+  https://github.com/madfam-org/janua/blob/main/docs/service-tokens.md
+- Janua RS256-only rule:
+  https://github.com/madfam-org/janua/blob/main/ECOSYSTEM.md
+- Enclii reusable build workflow:
+  https://github.com/madfam-org/enclii/blob/main/docs/guides/reusable-workflows.md
+
 ## LLM context files
 
 - `llms.txt` is the compact context index.
@@ -309,6 +333,15 @@ EMBEDDING_DIMENSION=384
 DAILY_FEED_LIMIT=20
 DIVERSITY_THRESHOLD=0.3
 SERENDIPITY_FACTOR=0.5
+
+# Janua auth (see docs/AUTH_TOKEN_VERIFICATION.md)
+JANUA_JWKS_URI=https://auth.madfam.io/.well-known/jwks.json
+JANUA_JWT_ISSUER=https://auth.madfam.io
+JANUA_JWT_AUDIENCE=            # empty = aud not checked
+JANUA_JWT_ALGORITHM=RS256
+JANUA_JWKS_CACHE_SECONDS=300
+AUTH_ENABLED=true              # false only for local dev
+INGEST_API_KEY=                # X-API-Key for the ingestion CronJob
 ```
 
 ---
@@ -374,7 +407,7 @@ flutter test --coverage
 
 ## Known Issues — Audits 2026-04-23 and 2026-05-28
 
-See `/Users/aldoruizluna/labspace/claudedocs/ECOSYSTEM_AUDIT_2026-04-23.md` for the full ecosystem audit.
+The full 2026-04-23 ecosystem audit lives in the private MADFAM workspace, not in this repository.
 See `docs/CURRENT_STATE.md` for the 2026-05-28 repo/prod evidence snapshot.
 
 - ~~**🟠 H5: Wildcard CORS**~~ — Fixed 2026-04-23: `backend/app/main.py` reads `CORS_ALLOWED_ORIGINS` env with `almanac.solar` fallback; explicit method + header lists.

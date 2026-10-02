@@ -43,8 +43,23 @@ gap or incident link.
 - `infra/`
 - `.github/workflows/`
 
+## Current facts (verified 2026-10-01)
+
+- API: FastAPI in `backend/`, Janua tokens verified offline with PyJWT against
+  the Janua JWKS (`kid` match, RS256 pinned, `iss` checked, `aud` opt-in via
+  `JANUA_JWT_AUDIENCE`, 30 s leeway). Contract:
+  `docs/AUTH_TOKEN_VERIFICATION.md`. Janua side:
+  https://github.com/madfam-org/janua/blob/main/docs/service-tokens.md
+- Frontend: Flutter web in `frontend/`.
+- Dependencies: SQLAlchemy `<2.1`, PyJWT `>=2.15.1,<3`; `python-jose` removed.
+- CI: GitHub-hosted `ubuntu-24.04` runners.
+- Deploy: `.github/workflows/build-deploy.yml` (Enclii reusable workflow), then
+  `scripts/prod-smoke.sh`.
+
 ## Maintenance
 
-These files are maintained by `internal-devops/scripts/sync-agent-docs.py`.
+`AGENTS.md` and `CLAUDE.md` are maintained by
+`internal-devops/scripts/sync-agent-docs.py`; this file and `llms.txt` are
+hand-curated and left alone by it.
 If repo-specific long-form agent guidance is needed, put it in `AGENTS.md`,
 not `CLAUDE.md`.

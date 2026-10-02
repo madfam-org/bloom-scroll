@@ -281,6 +281,7 @@ flutter build web --release --dart-define=API_BASE_URL=http://localhost:8000
 - **[DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md)** - "Paper & Ink" design tokens and guidelines
 - **[ROADMAP.md](docs/ROADMAP.md)** - Story tracking (STORY-001 to STORY-007)
 - **[CURRENT_STATE.md](docs/CURRENT_STATE.md)** - Evidence-backed implementation and production state
+- **[AUTH_TOKEN_VERIFICATION.md](docs/AUTH_TOKEN_VERIFICATION.md)** - How the API verifies Janua tokens (JWKS `kid` matching, RS256 pin, `iss`/`aud`/`exp`, 30 s leeway)
 - **[STABILITY_SESSION_2026-05-28.md](docs/STABILITY_SESSION_2026-05-28.md)** - 2026-05-28 stabilization session wrap-up
 - **[Product Brief](docs/brief.md)** - Core concept and differentiators
 - **[PRD](docs/prd.md)** - Detailed product requirements
@@ -309,7 +310,7 @@ flutter build web --release --dart-define=API_BASE_URL=http://localhost:8000
 ### Needs Verification / Hardening 🚧
 - ✅ **STORY-005 backend repair**: Poison pill and feed tests now target current modules/endpoints.
 - ✅ **Production docs exposure**: `/docs` and `/openapi.json` are hidden on `api.almanac.solar` by the production environment gate and covered by `scripts/prod-smoke.sh`.
-- ✅ **Auth hardening**: Janua RS256/JWKS verification is implemented with issuer and optional audience checks.
+- ✅ **Auth hardening**: Janua RS256/JWKS verification (PyJWT since 2026-10-01) with issuer and optional audience checks. Contract and gaps: [docs/AUTH_TOKEN_VERIFICATION.md](docs/AUTH_TOKEN_VERIFICATION.md).
 - ✅ **OpenAlex ingestion**: Science cards now have a repo-owned connector and API endpoints.
 - ✅ **Control-plane observability release**: Enclii CLI `v1.0.0-alpha.1` reports runtime health correctly from the distributed GitHub release artifact.
 - ✅ **Backend dependency determinism**: `backend/poetry.lock` is committed, CPU-only ML wheels are pinned separately for Docker, and lockfile guard tests prevent CUDA drift.
@@ -317,6 +318,17 @@ flutter build web --release --dart-define=API_BASE_URL=http://localhost:8000
 - 🔜 **Next stability priority**: frontend E2E/stress coverage, production observability (Sentry/metrics/alerts), and load/soak testing.
 
 See [ROADMAP.md](docs/ROADMAP.md) for detailed tracking.
+
+---
+
+## 🔗 Related repositories / contracts
+
+| Repository | Contract | Defined in |
+|---|---|---|
+| Janua (identity) | Issuer, JWKS endpoint, RS256 token shape verified by `backend/app/core/auth.py` | [janua `docs/service-tokens.md`](https://github.com/madfam-org/janua/blob/main/docs/service-tokens.md), [janua `ECOSYSTEM.md`](https://github.com/madfam-org/janua/blob/main/ECOSYSTEM.md) |
+| Enclii (platform) | Reusable `build-publish.yml` called by `.github/workflows/build-deploy.yml` | [enclii `docs/guides/reusable-workflows.md`](https://github.com/madfam-org/enclii/blob/main/docs/guides/reusable-workflows.md) |
+
+CI runs on GitHub-hosted `ubuntu-24.04` runners (pinned 2026-10-01).
 
 ---
 

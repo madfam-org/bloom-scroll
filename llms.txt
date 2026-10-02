@@ -10,6 +10,12 @@ Compact LLM context index for this repository.
 - `ECOSYSTEM.md` — MADFAM ecosystem and Enclii deployment context when present.
 - `llms-full.txt` — full context map and durable operating contract.
 
+## Key docs
+
+- `docs/AUTH_TOKEN_VERIFICATION.md` — how the API verifies Janua tokens (PyJWT, JWKS `kid` matching, RS256 pin, `iss`/`aud`/`exp`, 30 s leeway) and its gaps.
+- `docs/ARCHITECTURE.md` — Root System, Perspective Engine, Bloom Logic.
+- `backend/README.md` — endpoints, configuration notes, tests.
+
 ## Production operations
 
 Routine production operations are Enclii-first. Use Enclii web, API, or CLI

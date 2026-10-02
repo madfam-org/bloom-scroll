@@ -85,7 +85,8 @@ Local docs are available at `http://localhost:8000/docs`. Production-like enviro
 - `DATABASE_URL` is normalized to `postgresql+asyncpg://` in `app/core/database.py`.
 - Runtime CORS middleware reads `CORS_ALLOWED_ORIGINS` in `app/main.py`. (The old unwired `BACKEND_CORS_ORIGINS` setting was removed 2026-07-16.)
 - Mutating endpoints (`POST /api/v1/ingest/*`, `/api/v1/interactions/*`) require either a Janua Bearer token or the `INGEST_API_KEY` service key via `X-API-Key` (used by the production ingestion CronJob). Set `AUTH_ENABLED=false` for tokenless local development.
-- Auth helpers verify Janua RS256 tokens using `JANUA_JWKS_URI`, `JANUA_JWT_ISSUER`, and optional `JANUA_JWT_AUDIENCE`. HS algorithms are available only when explicitly configured for legacy local development.
+- Auth helpers verify Janua RS256 tokens with PyJWT using `JANUA_JWKS_URI` (key matched by `kid`, cached `JANUA_JWKS_CACHE_SECONDS`), `JANUA_JWT_ISSUER`, and optional `JANUA_JWT_AUDIENCE`, with 30 s leeway. HS algorithms are available only when explicitly configured for legacy local development. Contract: [../docs/AUTH_TOKEN_VERIFICATION.md](../docs/AUTH_TOKEN_VERIFICATION.md).
+- `sqlalchemy` is pinned `<2.1` (2.1 defaults `postgresql://` to psycopg v3 and drops `greenlet`).
 - Docs are disabled when `ENV`, `ENVIRONMENT`, or `PYTHON_ENV` is production-like.
 - `backend/poetry.lock` is committed for the standard backend dependency graph.
 - `requirements-ml-linux-cpu.txt` pins `torch==2.2.2+cpu`, `sentence-transformers==5.5.1`, and `transformers==4.57.6`; `tests/test_dependency_lock.py` guards that Poetry does not reintroduce torch/CUDA packages and that Docker installs the CPU requirements first.
