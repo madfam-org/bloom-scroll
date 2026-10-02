@@ -279,7 +279,7 @@ flutter build web --release --dart-define=API_BASE_URL=http://localhost:8000
 
 - **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Technical deep dive (Root System, Perspective Engine, Bloom Logic)
 - **[DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md)** - "Paper & Ink" design tokens and guidelines
-- **[ROADMAP.md](docs/ROADMAP.md)** - Story tracking (STORY-001 to STORY-007)
+- **[ROADMAP.md](docs/ROADMAP.md)** - Story tracking (STORY-001 to STORY-007) and the pending-work list
 - **[CURRENT_STATE.md](docs/CURRENT_STATE.md)** - Evidence-backed implementation and production state
 - **[AUTH_TOKEN_VERIFICATION.md](docs/AUTH_TOKEN_VERIFICATION.md)** - How the API verifies Janua tokens (JWKS `kid` matching, RS256 pin, `iss`/`aud`/`exp`, 30 s leeway)
 - **[STABILITY_SESSION_2026-05-28.md](docs/STABILITY_SESSION_2026-05-28.md)** - 2026-05-28 stabilization session wrap-up
@@ -297,7 +297,7 @@ flutter build web --release --dart-define=API_BASE_URL=http://localhost:8000
 
 **Version**: 0.1.0
 **Phase**: Production alpha / stabilization
-**Last Updated**: 2026-05-28
+**Last Updated**: 2026-10-02
 
 ### Completed Stories ✅
 - ✅ **STORY-001**: Infrastructure & OWID Ingestion
@@ -315,9 +315,9 @@ flutter build web --release --dart-define=API_BASE_URL=http://localhost:8000
 - ✅ **Control-plane observability release**: Enclii CLI `v1.0.0-alpha.1` reports runtime health correctly from the distributed GitHub release artifact.
 - ✅ **Backend dependency determinism**: `backend/poetry.lock` is committed, CPU-only ML wheels are pinned separately for Docker, and lockfile guard tests prevent CUDA drift.
 - ✅ **2026-07-16 Phase 0/1 remediation**: write endpoints auth-gated; feed pagination no longer re-serves cards (`exclude_ids`); liveness probe decoupled from DB (`/livez`); unmeasured perspective scores no longer displayed (`score_provenance` gate); daily ingestion CronJob added; serendipity query is pgvector-native.
-- 🔜 **Next stability priority**: frontend E2E/stress coverage, production observability (Sentry/metrics/alerts), and load/soak testing.
+- ✅ **2026-07-16 second wave**: Selva-backed perspective scoring (dormant until `SELVA_BASE_URL` is set), Neocities and Tropedia connectors, Redis hot-feed cache, per-IP rate limiting, Sentry wiring (dormant until `SENTRY_DSN` is set), Prometheus `/metrics`.
 
-See [ROADMAP.md](docs/ROADMAP.md) for detailed tracking.
+Pending work, with priorities and owner vs engineering split, is kept in one place: [docs/ROADMAP.md § Pending work](docs/ROADMAP.md#pending-work).
 
 ---
 

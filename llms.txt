@@ -15,6 +15,7 @@ Compact LLM context index for this repository.
 - `docs/AUTH_TOKEN_VERIFICATION.md` — how the API verifies Janua tokens (PyJWT, JWKS `kid` matching, RS256 pin, `iss`/`aud`/`exp`, 30 s leeway) and its gaps.
 - `docs/ARCHITECTURE.md` — Root System, Perspective Engine, Bloom Logic.
 - `backend/README.md` — endpoints, configuration notes, tests.
+- `docs/ROADMAP.md#pending-work` — the single pending-work list (priority, owner vs engineering).
 
 ## Production operations
 

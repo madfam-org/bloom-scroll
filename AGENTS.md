@@ -63,6 +63,12 @@ redirect and should not become the source of truth again.
 - Enclii reusable build workflow:
   https://github.com/madfam-org/enclii/blob/main/docs/guides/reusable-workflows.md
 
+## Pending work
+
+The single pending-work list is
+[docs/ROADMAP.md § Pending work](docs/ROADMAP.md#pending-work). Add items there,
+not here.
+
 ## LLM context files
 
 - `llms.txt` is the compact context index.
@@ -300,21 +306,31 @@ for candidate in candidates:
 
 ## API Endpoints
 
+The routes that exist on `main` (`backend/app/main.py`, `backend/app/api/`).
+Writes need a Janua bearer token or `X-API-Key: $INGEST_API_KEY`.
+
 ```
-# Feed
-GET  /api/v1/feed              # Today's 20 items
-GET  /api/v1/feed/archive      # Past feeds
-POST /api/v1/feed/complete     # Mark feed complete
+# Health
+GET  /                                 # service banner
+GET  /livez                            # liveness (no DB)
+GET  /health                           # readiness: DB, embeddings, freshness
+GET  /metrics                          # Prometheus; refuses Cloudflare-forwarded requests
+
+# Feed and perspective
+GET  /api/v1/feed                      # finite feed page (exclude_ids, read_count, limit <= 20)
+GET  /api/v1/perspective/{card_id}     # provenance-gated scores + data context
+
+# Ingestion (write access)
+POST /api/v1/ingest/owid | /owid/all | /openalex | /aesthetics | /aesthetics/all | /neocities | /narrative
+GET  /api/v1/ingest/datasets | /openalex/topics | /aesthetics/channels
 
 # Interactions
-POST /api/v1/items/:id/view    # Track view
-POST /api/v1/items/:id/save    # Save for later
-POST /api/v1/items/:id/hide    # Hide from future
-
-# User
-GET  /api/v1/user/blindspots   # Perspective gaps
-GET  /api/v1/user/stats        # Engagement stats
+POST /api/v1/interactions/track        # write access
+GET  /api/v1/interactions/recent/{user_id}  # own history, or service role
 ```
+
+There is no archive, save/hide or per-user blindspot endpoint yet; see
+[docs/ROADMAP.md](docs/ROADMAP.md#pending-work) for what is pending.
 
 ---
 

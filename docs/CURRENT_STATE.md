@@ -225,7 +225,7 @@ Operator follow-ups required to activate all of the above in production:
 6. Apply `internal-devops/grafana/service-monitors/bloom-scroll-api.yaml`
    to the monitoring namespace after deploy.
 
-## 2026-10-01 Close-out (dependency wave)
+## 2026-10-01/02 Close-out (dependency and auth waves)
 
 - #127: Janua token verification moved from `python-jose` to PyJWT[crypto]
   2.15.1 (`kid`-matched JWKS key, algorithm pinned to RS256, issuer, optional
@@ -236,17 +236,22 @@ Operator follow-ups required to activate all of the above in production:
 - #128: every GitHub-hosted job runs on `ubuntu-24.04` instead of
   `ubuntu-latest`, ahead of GitHub moving `ubuntu-latest` to Ubuntu 26 on
   2026-10-19.
-- Verification contract and its gaps (opt-in `aud`, no JWKS refresh on unknown
-  `kid`): [AUTH_TOKEN_VERIFICATION.md](AUTH_TOKEN_VERIFICATION.md).
-- `poetry run pytest -q`: 97 passed (2026-10-01, local).
+- #130: the Janua audience fails closed (`JANUA_JWT_AUDIENCE_REQUIRED`, default
+  true: with `JANUA_JWT_AUDIENCE` empty every Janua bearer token is rejected;
+  `X-API-Key` service writes are unaffected), `kid` is required, and an unknown
+  `kid` forces one JWKS re-fetch, at most one per 60 s per process.
+- Verification contract and its remaining gaps:
+  [AUTH_TOKEN_VERIFICATION.md](AUTH_TOKEN_VERIFICATION.md).
+- CI on `main` after #130 (2026-10-02): backend `pytest` 113 passed, `flutter
+  test` 12 passed.
 - Deploy note: `build-deploy.yml` ignores `**.md` and `docs/**`; a change under
   `backend/` rebuilds `api`, under `frontend/` rebuilds `web`. A root
   lockfile-only change runs the workflow but builds neither service.
 
-## Recommended Next Work
+## Pending Work
 
-1. Add frontend E2E and stress tests for finite-feed completion, pagination, production API-base behavior, missing metadata, image/aspect-ratio failures, and error-boundary paths.
-2. Add production observability: error telemetry, uptime checks, latency/error dashboards, feed failure alerts, ingestion alerts, and browser error reporting.
-3. Add load and soak tests for feed, health, and ingestion paths with larger card/vector counts.
-4. Add runtime resilience work: app-level rate limiting, hot-feed caching, and explicit graceful-degradation tests (client retry/backoff already exists in `api_service.dart`).
-5. Perspective Engine v1 (Phase 2 of the vision-gap plan): Selva-backed bias/constructiveness scoring at ingest with `score_provenance` set, real `/perspective/{card_id}` data, scoped blindspot + factfulness passes.
+The single pending-work list lives in
+[ROADMAP.md § Pending work](ROADMAP.md#pending-work), with priorities and
+owner/engineering split. It replaces the "Recommended Next Work" list that used
+to be here (perspective scoring, rate limiting, hot-feed caching and Sentry
+wiring from that list have landed).
