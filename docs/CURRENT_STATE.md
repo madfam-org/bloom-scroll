@@ -55,7 +55,7 @@ This file is the evidence-backed current-state reference for the repo. Historica
 - CORS allowlist is controlled in `backend/app/main.py` by `CORS_ALLOWED_ORIGINS`. The `BACKEND_CORS_ORIGINS` setting in `backend/app/core/config.py` is currently not what the running middleware reads.
 - Database URL normalization accepts `postgres://`, `postgresql://`, `postgresql+psycopg2://`, and `postgresql+psycopg://`, converting them to `postgresql+asyncpg://`.
 - Sentence-BERT embeddings are implemented via `backend/app/analysis/processor.py`.
-- Janua authentication verifies RS256 tokens through `JANUA_JWKS_URI` with issuer and optional audience checks, using PyJWT (`python-jose` was removed on 2026-10-01, #127). HS algorithms are still supported only when explicitly configured for legacy development. Full contract: [AUTH_TOKEN_VERIFICATION.md](AUTH_TOKEN_VERIFICATION.md).
+- Janua authentication verifies RS256 tokens through `JANUA_JWKS_URI` with issuer checks and a fail-closed audience (no Janua token is accepted while `JANUA_JWT_AUDIENCE` is unset), using PyJWT (`python-jose` was removed on 2026-10-01, #127). HS algorithms are still supported only when explicitly configured for legacy development. Full contract: [AUTH_TOKEN_VERIFICATION.md](AUTH_TOKEN_VERIFICATION.md).
 - OpenAlex ingestion is implemented in `backend/app/ingestion/openalex.py` and exposes source identifiers, authors, abstracts, concepts, citation counts, and PDF URLs in the card payload.
 - Bias detection is still a placeholder returning `None`.
 - Celery is scaffolded, but `ingest_owid_all_task` returns `{"status": "not_implemented"}`.

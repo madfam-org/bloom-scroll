@@ -46,8 +46,9 @@ gap or incident link.
 ## Current facts (verified 2026-10-01)
 
 - API: FastAPI in `backend/`, Janua tokens verified offline with PyJWT against
-  the Janua JWKS (`kid` match, RS256 pinned, `iss` checked, `aud` opt-in via
-  `JANUA_JWT_AUDIENCE`, 30 s leeway). Contract:
+  the Janua JWKS (`kid` required and matched, one rate-limited re-fetch on an unknown `kid`,
+  RS256 pinned, `iss` checked, `aud` = `JANUA_JWT_AUDIENCE` and fail closed
+  while it is unset, 30 s leeway). Contract:
   `docs/AUTH_TOKEN_VERIFICATION.md`. Janua side:
   https://github.com/madfam-org/janua/blob/main/docs/service-tokens.md
 - Frontend: Flutter web in `frontend/`.

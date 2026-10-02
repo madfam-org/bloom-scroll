@@ -5,6 +5,7 @@ Provides JWT verification and user extraction for API endpoints.
 Tokens are issued by Janua (MADFAM's centralized auth service).
 """
 
+import logging
 import secrets
 import time
 from collections.abc import Awaitable, Callable
@@ -20,11 +21,26 @@ from pydantic import BaseModel, ValidationError
 
 from app.core.config import settings
 
+logger = logging.getLogger(__name__)
+
 # Security scheme for JWT Bearer tokens
 security = HTTPBearer(auto_error=False)
 
 _jwks_cache: dict[str, Any] | None = None
 _jwks_cache_expires_at = 0.0
+
+# Janua rotates its signing key with a hard cut (no overlap window), so a token
+# whose `kid` is not in the cached JWKS triggers one forced re-fetch before it
+# is rejected. Forced re-fetches are rate-limited per process, so tokens with
+# forged `kid` values cannot turn into a stream of requests to Janua.
+JWKS_FORCED_REFRESH_MIN_INTERVAL_SECONDS = 60.0
+_jwks_forced_refresh_at: float | None = None
+
+# The only algorithm a Janua RS256 token may use. Fixed here, never taken from
+# the token header or the JWK.
+_RS256 = "RS256"
+
+_audience_unset_warned = False
 
 # Clock skew tolerated on exp / nbf / iat, in seconds. PyJWT rejects an `iat`
 # in the future (python-jose did not), and a Janua token is verified moments
@@ -65,21 +81,71 @@ def _configured_algorithm() -> str:
     return settings.JANUA_JWT_ALGORITHM.strip().upper()
 
 
-def _decode_options() -> Options:
+def _expected_audience() -> str | None:
+    """Return the audience every token must carry, or None when not enforced.
+
+    Fail closed: when ``JANUA_JWT_AUDIENCE`` is empty and
+    ``JANUA_JWT_AUDIENCE_REQUIRED`` is true (the default), no Janua token is
+    accepted, because without an audience any token Janua issues to any client
+    would verify here. ``JANUA_JWT_AUDIENCE_REQUIRED=false`` restores the
+    unchecked behaviour explicitly (local development only).
+
+    Raises:
+        jwt.InvalidAudienceError: audience required but not configured.
+    """
+    global _audience_unset_warned
+
+    audience = settings.JANUA_JWT_AUDIENCE.strip()
+    if audience:
+        return audience
+    if settings.JANUA_JWT_AUDIENCE_REQUIRED:
+        if not _audience_unset_warned:
+            logger.warning(
+                "JANUA_JWT_AUDIENCE is not set and JANUA_JWT_AUDIENCE_REQUIRED is true: "
+                "rejecting every Janua bearer token (fail closed)"
+            )
+            _audience_unset_warned = True
+        raise jwt.InvalidAudienceError("JANUA_JWT_AUDIENCE is required but not configured")
+    return None
+
+
+def _decode_options(audience: str | None) -> Options:
     """Build PyJWT verification options from settings."""
     return {
         "verify_exp": True,
-        "verify_aud": bool(settings.JANUA_JWT_AUDIENCE),
+        "verify_aud": audience is not None,
         "verify_iss": bool(settings.JANUA_JWT_ISSUER),
+        "require": ["exp"],
     }
 
 
-def _get_jwks() -> dict[str, Any]:
-    """Fetch and cache Janua JWKS keys for RS256 verification."""
+def _claim_forced_refresh() -> bool:
+    """Return True when a forced JWKS re-fetch is allowed now, and record it.
+
+    At most one forced re-fetch per ``JWKS_FORCED_REFRESH_MIN_INTERVAL_SECONDS``.
+    """
+    global _jwks_forced_refresh_at
+
+    now = time.monotonic()
+    if (
+        _jwks_forced_refresh_at is not None
+        and now - _jwks_forced_refresh_at < JWKS_FORCED_REFRESH_MIN_INTERVAL_SECONDS
+    ):
+        return False
+    _jwks_forced_refresh_at = now
+    return True
+
+
+def _get_jwks(*, force: bool = False) -> dict[str, Any]:
+    """Fetch and cache Janua JWKS keys for RS256 verification.
+
+    ``force=True`` bypasses the cache (one re-fetch per unknown ``kid``,
+    rate-limited by ``_claim_forced_refresh``).
+    """
     global _jwks_cache, _jwks_cache_expires_at
 
     now = time.time()
-    if _jwks_cache is not None and now < _jwks_cache_expires_at:
+    if not force and _jwks_cache is not None and now < _jwks_cache_expires_at:
         return _jwks_cache
 
     response = httpx.get(settings.JANUA_JWKS_URI, timeout=5)
@@ -93,47 +159,68 @@ def _get_jwks() -> dict[str, Any]:
     return jwks
 
 
+def _find_jwk(jwks: dict[str, Any], kid: str) -> dict[str, Any] | None:
+    for key in jwks.get("keys", []):
+        if isinstance(key, dict) and key.get("kid") == kid:
+            return key
+    return None
+
+
 def _select_jwk(token: str) -> dict[str, Any] | None:
-    """Select the JWKS key matching the token's kid header."""
+    """Select the JWKS key named by the token's ``kid`` header.
+
+    Janua names its signing key in every token, so a token without ``kid`` is
+    rejected. An unknown ``kid`` re-fetches the JWKS once (rate-limited) before
+    it is rejected, so a Janua key rotation does not reject valid tokens until
+    the cache expires.
+    """
     header = jwt.get_unverified_header(token)
     kid = header.get("kid")
     alg = header.get("alg")
-    if alg != _configured_algorithm():
+    if alg != _RS256 or not isinstance(kid, str) or not kid:
         return None
 
-    keys = _get_jwks().get("keys", [])
-    for key in keys:
-        if not isinstance(key, dict):
-            continue
-        if kid and key.get("kid") == kid:
-            return key
+    jwk = _find_jwk(_get_jwks(), kid)
+    if jwk is None and _claim_forced_refresh():
+        logger.info("Token kid not in cached JWKS; re-fetching once (key rotation)")
+        jwk = _find_jwk(_get_jwks(force=True), kid)
+    return jwk
 
-    if not kid and len(keys) == 1 and isinstance(keys[0], dict):
-        return keys[0]
 
-    return None
+def _rs256_key(jwk: dict[str, Any]) -> jwt.PyJWK:
+    """Bind the selected JWK to RS256.
+
+    A JWK that declares another ``alg``, a ``use`` other than ``sig``, or that
+    is not an RSA key is rejected.
+    """
+    if jwk.get("alg") not in (None, _RS256):
+        raise jwt.InvalidKeyError(f"JWKS key alg {jwk.get('alg')!r} is not allowed")
+    if jwk.get("use") not in (None, "sig"):
+        raise jwt.InvalidKeyError(f"JWKS key use {jwk.get('use')!r} is not 'sig'")
+    if jwk.get("kty") != "RSA":
+        raise jwt.InvalidKeyError(f"JWKS key kty {jwk.get('kty')!r} is not 'RSA'")
+    return jwt.PyJWK(jwk, algorithm=_RS256)
 
 
 def _decode_jwt(token: str) -> dict[str, Any]:
     """Decode a Janua JWT using RS256 JWKS or explicit HS256 fallback."""
     algorithm = _configured_algorithm()
-    audience = settings.JANUA_JWT_AUDIENCE or None
+    audience = _expected_audience()
     issuer = settings.JANUA_JWT_ISSUER or None
 
-    if algorithm == "RS256":
+    if algorithm == _RS256:
         jwk = _select_jwk(token)
         if not jwk:
             raise jwt.InvalidKeyError("No matching JWKS key")
         # The algorithm is pinned here, never taken from the JWK or the token.
-        signing_key = jwt.PyJWK(jwk, algorithm="RS256")
         return cast(dict[str, Any], jwt.decode(
             token,
-            signing_key,
-            algorithms=["RS256"],
+            _rs256_key(jwk),
+            algorithms=[_RS256],
             audience=audience,
             issuer=issuer,
             leeway=JWT_LEEWAY_SECONDS,
-            options=_decode_options(),
+            options=_decode_options(audience),
         ))
 
     if algorithm.startswith("HS"):
@@ -144,7 +231,7 @@ def _decode_jwt(token: str) -> dict[str, Any]:
             audience=audience,
             issuer=issuer,
             leeway=JWT_LEEWAY_SECONDS,
-            options=_decode_options(),
+            options=_decode_options(audience),
         ))
 
     raise jwt.InvalidAlgorithmError(f"Unsupported Janua JWT algorithm: {algorithm}")

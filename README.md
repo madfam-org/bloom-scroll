@@ -310,7 +310,7 @@ flutter build web --release --dart-define=API_BASE_URL=http://localhost:8000
 ### Needs Verification / Hardening 🚧
 - ✅ **STORY-005 backend repair**: Poison pill and feed tests now target current modules/endpoints.
 - ✅ **Production docs exposure**: `/docs` and `/openapi.json` are hidden on `api.almanac.solar` by the production environment gate and covered by `scripts/prod-smoke.sh`.
-- ✅ **Auth hardening**: Janua RS256/JWKS verification (PyJWT since 2026-10-01) with issuer and optional audience checks. Contract and gaps: [docs/AUTH_TOKEN_VERIFICATION.md](docs/AUTH_TOKEN_VERIFICATION.md).
+- ✅ **Auth hardening**: Janua RS256/JWKS verification (PyJWT since 2026-10-01) with issuer checks and a fail-closed audience (`JANUA_JWT_AUDIENCE`; while unset, Janua bearer tokens are rejected). Contract and gaps: [docs/AUTH_TOKEN_VERIFICATION.md](docs/AUTH_TOKEN_VERIFICATION.md).
 - ✅ **OpenAlex ingestion**: Science cards now have a repo-owned connector and API endpoints.
 - ✅ **Control-plane observability release**: Enclii CLI `v1.0.0-alpha.1` reports runtime health correctly from the distributed GitHub release artifact.
 - ✅ **Backend dependency determinism**: `backend/poetry.lock` is committed, CPU-only ML wheels are pinned separately for Docker, and lockfile guard tests prevent CUDA drift.
