@@ -38,7 +38,7 @@ dependencies:
 
   # Utilities
   intl: ^0.20.3
-  cached_network_image: ^3.3.0
+  cached_network_image: ^4.0.4
   url_launcher: ^6.2.1
   share_plus: ^13.1.0
 
