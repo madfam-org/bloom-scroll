@@ -171,7 +171,10 @@ next deploy + `INGEST_API_KEY` secret rotation:
 - **Scheduled ingestion exists.** `infra/k8s/production/ingest-cronjob.yaml`
   runs daily at 05:10 UTC against the authenticated endpoints using
   `INGEST_API_KEY` from `bloom-scroll-secrets` (operator must add the key —
-  see `secrets-template.yaml`).
+  see `secrets-template.yaml`). It first waits up to 45 s for the API's
+  `/health` to answer, retrying only connect failures: a new Job pod's first
+  connects are refused for a few seconds while the network policy admits its
+  IP. Tested in `backend/tests/test_ingest_cronjob.py`.
 - **Serendipity is pgvector-native.** The distance band + ideal-midpoint
   ordering run in SQL over the whole corpus; candidates are no longer capped
   at the ~50 most recent rows; already-seen cards are excluded; short pages

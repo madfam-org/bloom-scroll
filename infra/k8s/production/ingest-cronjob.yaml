@@ -12,6 +12,13 @@
 # Image: reuses the API image (already present on nodes, GHCR not Docker Hub
 # — see internal-devops runbooks/dockerhub-rate-limit-mitigation.md) purely
 # for its Python + httpx runtime.
+#
+# Start-up wait: a new Job pod's first connects to the API are refused for a
+# few seconds while the NetworkPolicy controller admits the pod's IP (seen
+# 2026-11-07: every call "Connection refused" within 2 s, passed on the retry
+# pod). The script first waits up to 45 s for GET /health to answer, retrying
+# only connect failures; if the API never answers it exits 1. The script is
+# tested in backend/tests/test_ingest_cronjob.py.
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -61,11 +68,41 @@ spec:
             command: ["python", "-c"]
             args:
             - |
-              import os, sys
+              import os, sys, time
               import httpx
 
-              base = "http://bloom-scroll-api.bloom-scroll.svc.cluster.local:80/api/v1"
+              origin = "http://bloom-scroll-api.bloom-scroll.svc.cluster.local:80"
+              base = origin + "/api/v1"
               headers = {"X-API-Key": os.environ["INGEST_API_KEY"]}
+
+
+              def wait_for_api(client, timeout=45.0):
+                  # A new Job pod's first connects are refused for a few seconds
+                  # while the NetworkPolicy controller admits its IP. Retry only
+                  # connect failures (1/2/4/8 s backoff, at most `timeout` s);
+                  # any HTTP answer, even an error status, means reachable.
+                  deadline = time.monotonic() + timeout
+                  delay = 1.0
+                  attempt = 0
+                  while True:
+                      attempt += 1
+                      try:
+                          client.get(origin + "/health", timeout=10)
+                          return attempt - 1
+                      except (httpx.ConnectError, httpx.ConnectTimeout) as exc:
+                          if time.monotonic() + delay > deadline:
+                              print(f"API unreachable after {attempt} attempts: {exc}", flush=True)
+                              raise
+                          print(f"API not reachable yet (attempt {attempt}: {exc}); retrying in {delay:.0f}s", flush=True)
+                          time.sleep(delay)
+                          delay = min(delay * 2, 8.0)
+                      except httpx.HTTPError as exc:
+                          # Connected but slow or odd: not a refusal. Let the
+                          # calls below report for themselves.
+                          print(f"API health probe: {exc!r}; continuing", flush=True)
+                          return attempt - 1
+
+
               calls = [
                   ("POST", "/ingest/owid/all", {}),
                   ("POST", "/ingest/openalex", {"topic_key": "renewable_energy", "limit": "3"}),
@@ -76,6 +113,10 @@ spec:
               ]
               failures = 0
               with httpx.Client(base_url=base, headers=headers, timeout=300) as client:
+                  try:
+                      wait_for_api(client)
+                  except (httpx.ConnectError, httpx.ConnectTimeout):
+                      sys.exit(1)
                   for method, path, params in calls:
                       try:
                           r = client.request(method, path, params=params)
