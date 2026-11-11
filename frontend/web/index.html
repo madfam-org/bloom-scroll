@@ -27,8 +27,34 @@
        install flow, which is both wrong and user-hostile for this product.
        No manifest link, no standalone meta tags. -->
   <title>Almanac — Slow Web</title>
+
+  <!-- First paint. The Flutter engine (CanvasKit) takes a few seconds to
+       download and boot; without this the page is blank until then. Same
+       paper and ink as BloomColors (design_tokens.dart), a serif fallback
+       for Libre Baskerville, no motion. Removed on Flutter's first frame. -->
+  <style>
+    html, body { margin: 0; height: 100%; background: #FDFCF8; color: #1A1A1A; }
+    #first-paint {
+      position: fixed; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 0.5rem;
+      font-family: "Libre Baskerville", Georgia, "Times New Roman", serif;
+      text-align: center; padding: 0 16px;
+    }
+    #first-paint h1 { margin: 0; font-size: clamp(2rem, 6vw, 3rem); font-weight: 700; letter-spacing: -0.01em; }
+    #first-paint p { margin: 0; color: #595959; font-size: 1rem; }
+  </style>
 </head>
 <body>
+  <div id="first-paint" role="status" aria-live="polite">
+    <h1>Almanac</h1>
+    <p>Slow Web</p>
+  </div>
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      var el = document.getElementById('first-paint');
+      if (el) el.remove();
+    }, { once: true });
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
